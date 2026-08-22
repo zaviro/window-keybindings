@@ -29,6 +29,41 @@
 
 `Mod+Space` 不再作为本规范入口；`Mod+Shift+角色键 = compose` 的方案已删除。
 
+## 未来扩展（不进入当前核心键位）
+
+### Semantic Alias
+
+允许用户把任意稳定、高频目标注册为直接语义别名，并分配 `Mod+字母` 一类 O(1) 快捷入口。例如未来可以有：
+
+```text
+Mod+M → music
+Mod+C → ChatGPT
+Mod+G → 某个固定 GitHub / browser profile
+```
+
+Alias 与 role 共用同一种用户语义：**已有则跳转，没有则创建**。`browser`、`terminal` 可以视为系统预设 role；Alias 则由用户按实际高频对象自行增加。
+
+### Directional Activation
+
+未来可能支持把“激活目标”和“组成当前屏幕布局”合成一次操作：
+
+```text
+Mod + ← + B
+```
+
+当前首选语义：**保留当前窗口，激活/拉取 Browser，并把 Browser 放在当前窗口左侧。**
+
+也就是说，方向箭头暂定描述**目标窗口的最终位置**：
+
+```text
+← Browser → [ Browser ][ Current ]
+→ Browser → [ Current ][ Browser ]
+↑ Terminal → Terminal 在 Current 上方
+↓ Terminal → Terminal 在 Current 下方
+```
+
+这只是 Future / Experimental 规则，尚未决定真实物理按键如何实现，也尚未决定已有多窗布局、默认比例和焦点等边界行为。
+
 ## 原生窗口管理能力
 
 niri 已经成熟且好用的窗口管理键原则上全部保留，包括：
@@ -61,4 +96,4 @@ niri 已经成熟且好用的窗口管理键原则上全部保留，包括：
 - [`SPEC.md`](./SPEC.md)：完整规范与设计理由。
 - [`REFERENCES.md`](./REFERENCES.md)：niri、Hyprland、Noctalia 的参考依据。
 
-当前状态：**Draft v0.2**。
+当前状态：**Draft v0.3**。
