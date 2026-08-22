@@ -4,133 +4,105 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Window Keybindings · Draft v0.2</title>
+<title>Window Keybindings · Draft v0.3</title>
 <style>
-:root{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;color-scheme:light dark;--bg:#f6f7f9;--panel:#fff;--text:#17191f;--muted:#676d78;--line:#dfe3ea;--accent:#315efb;--accent-bg:#edf1ff;--ok:#18794e;--ok-bg:#eaf6ef;--draft:#8a5a00;--draft-bg:#fff3d4;--hold:#6856b7;--hold-bg:#f0edff} @media(prefers-color-scheme:dark){:root{--bg:#111318;--panel:#191c23;--text:#f2f4f7;--muted:#aab0bb;--line:#303641;--accent:#8faaff;--accent-bg:#222c4c;--ok:#75d7aa;--ok-bg:#17372b;--draft:#ffd171;--draft-bg:#392f19;--hold:#c2b7ff;--hold-bg:#2c2748}}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);line-height:1.65}.wrap{width:min(1080px,calc(100% - 28px));margin:auto;padding:28px 0 72px}.hero{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:28px}.eyebrow{font-size:13px;color:var(--muted);font-weight:800;letter-spacing:.06em;text-transform:uppercase}h1{font-size:clamp(30px,6vw,52px);line-height:1.08;margin:8px 0 10px}h2{margin:0;font-size:22px}p{margin:8px 0}.lead{font-size:18px;max-width:760px}.model{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px}.model>div{border:1px solid var(--line);border-radius:16px;padding:16px;background:color-mix(in srgb,var(--panel) 90%,var(--bg))}.model b{display:block;margin-bottom:5px}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.toolbar button,.toolbar input{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:12px;padding:10px 13px}.toolbar button{cursor:pointer}.toolbar button.active{border-color:var(--accent);background:var(--accent-bg)}.toolbar input{flex:1;min-width:210px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden}.card summary{cursor:pointer;list-style:none;padding:18px;display:flex;align-items:flex-start;gap:12px}.card summary::-webkit-details-marker{display:none}.num{width:31px;height:31px;border-radius:10px;display:grid;place-items:center;background:var(--accent-bg);color:var(--accent);font-weight:800;flex:0 0 auto}.title{min-width:0;flex:1}.title small{display:block;color:var(--muted);font-weight:500;margin-top:2px}.body{border-top:1px solid var(--line);padding:18px}.body h3{font-size:16px;margin:18px 0 6px}.body h3:first-child{margin-top:0}.keys{display:grid;gap:8px}.keyrow{display:grid;grid-template-columns:minmax(110px,170px) 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.keyrow:last-child{border-bottom:0}kbd{display:inline-block;border:1px solid var(--line);border-bottom-width:2px;border-radius:7px;padding:2px 7px;background:var(--bg);font:600 13px ui-monospace,SFMono-Regular,Consolas,monospace}.tag{display:inline-block;font-size:12px;font-weight:800;border-radius:999px;padding:3px 8px;margin-left:6px}.ok{background:var(--ok-bg);color:var(--ok)}.draft{background:var(--draft-bg);color:var(--draft)}.hold{background:var(--hold-bg);color:var(--hold)}.callout{border-left:4px solid var(--accent);background:var(--accent-bg);padding:12px 14px;border-radius:0 12px 12px 0}.removed{opacity:.72;text-decoration:line-through}.decision{display:grid;gap:9px}.decision div{padding:11px 12px;border:1px solid var(--line);border-radius:12px}.footer{color:var(--muted);margin-top:24px;font-size:14px}.hidden{display:none!important}@media(max-width:760px){.model,.grid{grid-template-columns:1fr}.keyrow{grid-template-columns:1fr}.hero{padding:20px}.wrap{width:min(100% - 18px,1080px)}}
+:root{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;color-scheme:light dark;--bg:#f6f7f9;--panel:#fff;--text:#17191f;--muted:#676d78;--line:#dfe3ea;--accent:#315efb;--accent-bg:#edf1ff;--ok:#18794e;--ok-bg:#eaf6ef;--draft:#8a5a00;--draft-bg:#fff3d4;--hold:#6856b7;--hold-bg:#f0edff;--future:#0f6f74;--future-bg:#e8f7f7}@media(prefers-color-scheme:dark){:root{--bg:#111318;--panel:#191c23;--text:#f2f4f7;--muted:#aab0bb;--line:#303641;--accent:#8faaff;--accent-bg:#222c4c;--ok:#75d7aa;--ok-bg:#17372b;--draft:#ffd171;--draft-bg:#392f19;--hold:#c2b7ff;--hold-bg:#2c2748;--future:#7ed8dc;--future-bg:#173638}}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);line-height:1.65}.wrap{width:min(1080px,calc(100% - 28px));margin:auto;padding:28px 0 72px}.hero{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:28px}.eyebrow{font-size:13px;color:var(--muted);font-weight:800;letter-spacing:.06em;text-transform:uppercase}h1{font-size:clamp(30px,6vw,52px);line-height:1.08;margin:8px 0 10px}h2{margin:0;font-size:22px}h3{font-size:16px;margin:18px 0 6px}p{margin:8px 0}.lead{font-size:18px;max-width:780px}.model{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px}.model>div{border:1px solid var(--line);border-radius:16px;padding:16px}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.toolbar button,.toolbar input{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:12px;padding:10px 13px}.toolbar button{cursor:pointer}.toolbar button.active{border-color:var(--accent);background:var(--accent-bg)}.toolbar input{flex:1;min-width:210px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden}.card summary{cursor:pointer;list-style:none;padding:18px;display:flex;align-items:flex-start;gap:12px}.card summary::-webkit-details-marker{display:none}.num{width:31px;height:31px;border-radius:10px;display:grid;place-items:center;background:var(--accent-bg);color:var(--accent);font-weight:800;flex:0 0 auto}.title{min-width:0;flex:1}.title small{display:block;color:var(--muted);font-weight:500;margin-top:2px}.body{border-top:1px solid var(--line);padding:18px}.keys{display:grid;gap:8px}.keyrow{display:grid;grid-template-columns:minmax(120px,185px) 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.keyrow:last-child{border-bottom:0}kbd{display:inline-block;border:1px solid var(--line);border-bottom-width:2px;border-radius:7px;padding:2px 7px;background:var(--bg);font:600 13px ui-monospace,SFMono-Regular,Consolas,monospace}.tag{display:inline-block;font-size:12px;font-weight:800;border-radius:999px;padding:3px 8px;margin-left:6px}.ok{background:var(--ok-bg);color:var(--ok)}.draft{background:var(--draft-bg);color:var(--draft)}.hold{background:var(--hold-bg);color:var(--hold)}.future{background:var(--future-bg);color:var(--future)}.callout{border-left:4px solid var(--accent);background:var(--accent-bg);padding:12px 14px;border-radius:0 12px 12px 0}.diagram{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--bg)}.hidden{display:none!important}.footer{color:var(--muted);margin-top:24px;font-size:14px}@media(max-width:760px){.model,.grid{grid-template-columns:1fr}.keyrow{grid-template-columns:1fr}.hero{padding:20px}.wrap{width:min(100% - 18px,1080px)}}
 </style>
 </head>
 <body>
 <main class="wrap" id="app">
 <section class="hero">
-<div class="eyebrow">Draft v0.2 · 语义寻址优先</div>
-<h1>创建后可以忘记，想要时按名字回来</h1>
-<p class="lead">规范不再试图重做 niri 的窗口管理。我们只在原生能力之上增加一层更低记忆负担的寻址：知道角色就直达，知道名字就搜索，只想回到刚才就用历史。</p>
+<div class="eyebrow">Draft v0.3 · 语义寻址优先</div>
+<h1>创建后可以忘记，想要时按语义回来</h1>
+<p class="lead">核心仍然只有三种主要寻址：知道角色就直达，知道名字就搜索，只想回到刚才就用历史。Alias 与方向组合只进入未来实验层，不占当前核心键位。</p>
 <div class="model">
 <div><b>知道角色</b><kbd>Mod+B</kbd> / <kbd>Mod+T</kbd><p>focus-or-create</p></div>
 <div><b>知道名字</b><kbd>Mod+D</kbd><p>Noctalia 搜 window / app / workspace</p></div>
 <div><b>回到刚才</b><kbd>Mod+Tab</kbd><p>保留 niri recent windows</p></div>
 </div>
 </section>
-
-<div class="toolbar" aria-label="筛选草案">
+<div class="toolbar">
 <button type="button" class="active" data-filter="all">全部</button>
 <button type="button" data-filter="core">核心</button>
 <button type="button" data-filter="keys">键位</button>
+<button type="button" data-filter="future">未来实验</button>
 <button type="button" data-filter="draft">待验证</button>
-<input id="search" type="search" placeholder="搜索 browser、workspace、Noctalia…" aria-label="搜索草案">
+<input id="search" type="search" placeholder="搜索 browser、alias、direction、workspace…" aria-label="搜索草案">
 <button type="button" id="expand">展开全部</button>
 <button type="button" id="collapse">收起全部</button>
 </div>
-
 <section class="grid">
-<details class="card" data-tags="core keys browser terminal role">
-<summary><span class="num">1</span><span class="title"><h2>Role：只保留真正高频对象</h2><small>B / T 进入核心；E / A 只保留名字，不占键位</small></span></summary>
-<div class="body">
-<div class="keys">
-<div class="keyrow"><div><kbd>Mod+B</kbd><span class="tag draft">暂定</span></div><div><b>当前 workspace browser</b>：已有则 focus，没有则创建并绑定为 local browser。</div></div>
-<div class="keyrow"><div><kbd>Mod+T</kbd><span class="tag draft">暂定</span></div><div><b>当前 workspace terminal</b>：沿用 niri 官方 T=Terminal，但把默认 spawn 语义升级为 focus-or-create。</div></div>
-<div class="keyrow"><div><kbd>Mod+Alt+B</kbd><span class="tag draft">暂定</span></div><div><b>global-main browser</b>：存在于别处就拉到当前 workspace；不存在才创建。</div></div>
-<div class="keyrow"><div><kbd>Mod+Alt+T</kbd><span class="tag draft">待验证</span></div><div><b>global-main terminal</b>：逻辑同上，但是否值得长期占键仍需实际体验。</div></div>
-<div class="keyrow"><div><kbd>Mod+E</kbd><span class="tag hold">保留不绑定</span></div><div>Editor role 名称保留。编辑器生态和实际主编辑对象尚不稳定，暂不建立肌肉记忆。</div></div>
-<div class="keyrow"><div><kbd>Mod+A</kbd><span class="tag hold">保留不绑定</span></div><div>AI / Assistant role 名称保留。只有未来出现明确、高频、稳定的 AI 对象时再启用。</div></div>
-</div>
-<div class="callout"><b>原则：</b>固定键不是应用收藏夹。只有达到“我经常明确想去这个对象”的稳定 role 才值得占一个字母。</div>
-</div>
+
+<details class="card" data-tags="core keys role browser terminal">
+<summary><span class="num">1</span><span class="title"><h2>Role：只保留真正高频对象</h2><small>B / T 进入核心；E / A 只保留语义槽位</small></span></summary>
+<div class="body"><div class="keys">
+<div class="keyrow"><div><kbd>Mod+B</kbd><span class="tag draft">暂定</span></div><div>当前 workspace browser：已有则 focus，没有则创建。</div></div>
+<div class="keyrow"><div><kbd>Mod+T</kbd><span class="tag draft">暂定</span></div><div>当前 workspace terminal：沿用 niri 的 T=Terminal，但升级成 focus-or-create。</div></div>
+<div class="keyrow"><div><kbd>Mod+Alt+B</kbd><span class="tag draft">暂定</span></div><div>global-main browser：存在于别处就拉到当前 workspace。</div></div>
+<div class="keyrow"><div><kbd>Mod+Alt+T</kbd><span class="tag draft">待验证</span></div><div>global-main terminal：逻辑相同，但长期价值待实测。</div></div>
+<div class="keyrow"><div><kbd>Mod+E</kbd><span class="tag hold">保留不绑定</span></div><div>Editor role 名称保留，暂不建立肌肉记忆。</div></div>
+<div class="keyrow"><div><kbd>Mod+A</kbd><span class="tag hold">保留不绑定</span></div><div>AI / Assistant role 名称保留，等出现稳定高频对象再启用。</div></div>
+</div></div>
 </details>
 
 <details class="card" data-tags="core keys search noctalia launcher">
-<summary><span class="num">2</span><span class="title"><h2>搜索：只保留 Mod+D</h2><small>复用 Noctalia，不再同时维护 Mod+Space</small></span></summary>
-<div class="body">
-<h3>目标</h3>
-<p><kbd>Mod+D</kbd> 打开统一 Destination Search。输入通常 2–3 个字符，结果可以同时包含运行中窗口、应用和 named workspace。</p>
-<div class="decision">
-<div><b>Chrome — GitHub</b> <span class="tag ok">window</span> → 跳转已有窗口</div>
-<div><b>Google Chrome</b> <span class="tag ok">application</span> → 启动应用/新窗口</div>
-<div><b>window-keybindings</b> <span class="tag ok">workspace</span> → 跳转工作区</div>
-</div>
-<h3>为什么复用 Noctalia</h3>
-<p>Noctalia 已有 applications 与 windows provider；先把 windows provider 纳入普通搜索并验证 ranking。只有实际体验不足时，才写薄 provider/plugin，不另造完整 launcher。</p>
-<h3>已删除</h3>
-<p class="removed">Mod+Space → 第二个统一搜索入口</p>
-<p>原因：和 <kbd>Mod+D</kbd> 重叠，同时更容易撞到应用、输入法或桌面快捷键。</p>
-</div>
+<summary><span class="num">2</span><span class="title"><h2>搜索：只保留 Mod+D</h2><small>优先复用 Noctalia</small></span></summary>
+<div class="body"><p><kbd>Mod+D</kbd> 打开统一 Destination Search；窗口结果跳转，应用结果启动，workspace 结果按名进入。</p><div class="diagram">Chrome — GitHub       [window] → 跳转
+Google Chrome         [application] → 启动
+window-keybindings    [workspace] → 进入</div><p>不再保留 <kbd>Mod+Space</kbd> 第二入口。</p></div>
 </details>
 
 <details class="card" data-tags="core workspace name search">
-<summary><span class="num">3</span><span class="title"><h2>Workspace：名字是身份，数字是别名</h2><small>忘掉编号也能通过名字回来</small></span></summary>
-<div class="body">
-<p>长期 workspace 使用名字，例如 <code>main</code>、<code>window-keybindings</code>、<code>learning</code>。内部顺序、workspace ID 和显示器位置都不构成身份。</p>
-<div class="keys">
-<div class="keyrow"><div><kbd>Mod+1..9</kbd></div><div>保留为稳定快速槽位，例如 <code>2 → window-keybindings</code>。</div></div>
-<div class="keyrow"><div><kbd>Mod+D</kbd> → <code>win</code></div><div>忘记数字后按名称搜索恢复，不产生“匿名 workspace 4 是什么”的负担。</div></div>
-</div>
-<p>自动命名属于后续 policy：niri 原生负责 named workspace / 按名 focus；helper 可以根据项目或事件流决定名称。</p>
-</div>
+<summary><span class="num">3</span><span class="title"><h2>Workspace：名字是身份</h2><small>数字只是快速槽位</small></span></summary>
+<div class="body"><p>长期 workspace 使用名字；<kbd>Mod+1..9</kbd> 只是稳定别名。忘记数字后仍可 <kbd>Mod+D</kbd> 输入名称找回。</p><div class="diagram">1 → main
+2 → window-keybindings
+3 → learning</div></div>
 </details>
 
 <details class="card" data-tags="core keys niri fallback spatial">
-<summary><span class="num">4</span><span class="title"><h2>niri 原生键：完整保留</h2><small>语义导航是加法，不是替代 compositor</small></span></summary>
-<div class="body">
-<p>不再限制方向键，也不删除低频原生操作。它们构成可靠的空间管理与回退层。</p>
-<div class="keys">
-<div class="keyrow"><div><kbd>Mod+O</kbd></div><div>Overview</div></div>
-<div class="keyrow"><div><kbd>Mod+Q</kbd></div><div>Close</div></div>
-<div class="keyrow"><div><kbd>Mod+F</kbd> / <kbd>Shift+F</kbd></div><div>Maximize column / true fullscreen</div></div>
-<div class="keyrow"><div><kbd>Mod+R</kbd></div><div>Preset column width</div></div>
-<div class="keyrow"><div><kbd>Mod+V</kbd></div><div>Floating toggle</div></div>
-<div class="keyrow"><div><kbd>Mod+Tab</kbd></div><div>Recent windows / 回到刚才</div></div>
-<div class="keyrow"><div>方向、Ctrl/Shift 变体</div><div>focus、移动、workspace 重排、consume/expel、resize、center、expand 等原生能力全部保留。</div></div>
-</div>
-</div>
+<summary><span class="num">4</span><span class="title"><h2>niri 原生能力全部保留</h2><small>语义层是加法，不替代窗口管理器</small></span></summary>
+<div class="body"><p><kbd>Mod+O/Q/F/R/V/Shift+F/Tab</kbd>、方向 focus、窗口/列移动、workspace 重排、consume/expel、resize、center、expand 等都保留，作为完整空间操作与 fallback。</p></div>
 </details>
 
-<details class="card" data-tags="keys removed compose shift layout">
-<summary><span class="num">5</span><span class="title"><h2>删除：Shift+Role = Compose</h2><small>分屏属于布局层，不绑死到 role 层</small></span></summary>
-<div class="body">
-<p class="removed">Mod+Shift+B → 保留当前窗口并把 Browser 放旁边</p>
-<p>这个语义不够直觉，而且会和 niri 原生大量 Shift 结构操作混淆。用户产生疑惑本身就是信号：不应继续固化。</p>
-<p>分屏、组合、placement 后续单独讨论，优先复用 niri / Hyprland 的布局能力。</p>
-</div>
+<details class="card" data-tags="future alias semantic custom keys">
+<summary><span class="num">5</span><span class="title"><h2>Future：Semantic Alias</h2><small>把少量真实高频对象升级成自定义 O(1) 地址</small></span></summary>
+<div class="body"><span class="tag future">Future / Experimental</span><p>Alias 与 role 使用同一种行为：已有则跳转/召回，没有则创建；但 alias 由用户定义，适合无法抽象成 browser/terminal 的稳定高频对象。</p><div class="diagram">Mod+M → music
+Mod+C → ChatGPT
+Mod+G → 某个固定 GitHub / browser profile</div><div class="callout"><b>约束：</b>Alias 不能重新退化成 mark 系统。只有少量真正高频目标才升级；长尾对象继续走 Mod+D 搜索。</div></div>
+</details>
+
+<details class="card" data-tags="future direction layout compose role alias chord">
+<summary><span class="num">6</span><span class="title"><h2>Future：Directional Activation</h2><small>一次完成保留当前窗口 + 激活目标 + 排列</small></span></summary>
+<div class="body"><span class="tag future">Future / Experimental</span><p>当前首选规则：<b>箭头表示目标窗口的最终位置</b>。</p><div class="diagram">Mod + ← + B
+→ [ Browser ][ Current ]
+
+Mod + → + B
+→ [ Current ][ Browser ]
+
+Mod + ↑ + T
+→ Terminal 在 Current 上方
+
+Mod + ↓ + T
+→ Terminal 在 Current 下方</div><p>这比“← 表示原窗口放左边”少一层反向推理：<code>← Browser</code> 可以直接读成“Browser 放左边”。</p><h3>理想组合语法</h3><div class="diagram">Alt       → 目标作用域
+方向       → 目标最终位置
+B/T/Alias → 目标对象</div><p>因此未来理论上可以有 <code>Mod+Alt+←+B</code>：把 global-main Browser 拉来并放左侧。</p><h3>尚未决定</h3><ul><li>目标已经可见时是否重排；</li><li>已有两窗/三窗时是新增、替换还是重构；</li><li>默认比例 50/50 还是 60/40；</li><li>执行后 focus target 还是保留 Current；</li><li>niri / Hyprland 中真实物理输入采用 chord、leader、submap 还是 helper。</li></ul></div>
 </details>
 
 <details class="card" data-tags="core implementation niri ipc focus spawn">
-<summary><span class="num">6</span><span class="title"><h2>实现：niri 默认不是 focus-or-create</h2><small>role 需要一个很薄的 IPC helper</small></span></summary>
-<div class="body">
-<p>niri 官方默认 <kbd>Mod+T</kbd> 的动作是 <code>spawn</code>。它不会先查找已有窗口。</p>
-<div class="callout"><code>key → helper → query windows → match ? focus-window : spawn</code></div>
-<p>global-main 在此基础上再增加 <code>move-window-to-workspace</code>。这些都是 niri IPC 已提供的原子能力，因此无需修改 compositor。</p>
-</div>
+<summary><span class="num">7</span><span class="title"><h2>实现边界：niri 默认不是 focus-or-create</h2><small>需要很薄的语义 helper</small></span></summary>
+<div class="body"><div class="callout"><code>key → helper → query windows → match ? focus-window : spawn</code></div><p>global-main 再增加 move-window-to-workspace。Alias 将来复用同一 helper，而不是再造一套机制。</p></div>
 </details>
 
-<details class="card" data-tags="draft questions validation">
-<summary><span class="num">7</span><span class="title"><h2>下一轮只验证这些问题</h2><small>避免继续在纸面上增加功能</small></span></summary>
-<div class="body">
-<ol>
-<li>Noctalia 的 windows + applications 搜索排序是否已经足够自然？</li>
-<li><kbd>Mod+B</kbd>/<kbd>Mod+T</kbd> focus-or-create 是否真的比纯 spawn 更顺手？</li>
-<li>多个 Browser 窗口存在时，local browser role 应怎样稳定绑定？</li>
-<li><kbd>Mod+Alt+T</kbd> 是否真的值得存在？</li>
-<li>named workspace 是否需要自动命名，还是搜索+手动命名已经足够？</li>
-<li>分屏是否完全交给 niri 原生操作就够了？只有体验不足时再设计 placement 语义。</li>
-<li>什么时候 Editor / AI role 达到值得启用固定键的频率？</li>
-</ol>
-</div>
+<details class="card" data-tags="draft questions validation future">
+<summary><span class="num">8</span><span class="title"><h2>下一轮需要实测的问题</h2><small>未来功能先记录，不急着占键</small></span></summary>
+<div class="body"><ol><li>Noctalia 的 windows + applications ranking 是否已经足够自然？</li><li>多个 browser 窗口中 local role 如何稳定认领？</li><li>global-main terminal 是否真的值得保留？</li><li>Semantic Alias 是否能保持少量高频对象，而不演变成 mark 维护？</li><li>Directional Activation 的箭头是否确实应该表示 target 的位置？</li><li>已有复杂 composition 时方向激活应如何处理？</li><li>最自然的真实 chord 输入方式是什么？</li></ol></div>
 </details>
+
 </section>
-<p class="footer">Window Keybindings · Draft v0.2 · 规范先于实现，但真实使用体验优先于纸面完整性。</p>
+<p class="footer">Draft v0.3 · 当前核心保持克制；Alias 与 Directional Activation 仅作为未来实验语义记录。</p>
 </main>
 <script>
-(()=>{const root=document.getElementById('app');if(root.dataset.ready)return;root.dataset.ready='1';const cards=[...root.querySelectorAll('.card')];const buttons=[...root.querySelectorAll('[data-filter]')];const search=root.querySelector('#search');let filter='all';function apply(){const q=search.value.trim().toLowerCase();cards.forEach(card=>{const tags=(card.dataset.tags||'').toLowerCase();const text=card.textContent.toLowerCase();const okFilter=filter==='all'||tags.includes(filter);const okSearch=!q||text.includes(q);card.classList.toggle('hidden',!(okFilter&&okSearch));});}buttons.forEach(btn=>btn.addEventListener('click',()=>{filter=btn.dataset.filter;buttons.forEach(b=>b.classList.toggle('active',b===btn));apply();}));search.addEventListener('input',apply);root.querySelector('#expand').addEventListener('click',()=>cards.filter(c=>!c.classList.contains('hidden')).forEach(c=>c.open=true));root.querySelector('#collapse').addEventListener('click',()=>cards.forEach(c=>c.open=false));})();
+(()=>{const root=document.getElementById('app');const cards=[...root.querySelectorAll('.card')];const buttons=[...root.querySelectorAll('[data-filter]')];const search=root.querySelector('#search');let filter='all';function apply(){const q=search.value.trim().toLowerCase();cards.forEach(card=>{const hitFilter=filter==='all'||card.dataset.tags.includes(filter);const hitText=!q||card.textContent.toLowerCase().includes(q);card.classList.toggle('hidden',!(hitFilter&&hitText));});}buttons.forEach(btn=>btn.addEventListener('click',()=>{filter=btn.dataset.filter;buttons.forEach(b=>b.classList.toggle('active',b===btn));apply();}));search.addEventListener('input',apply);root.querySelector('#expand').addEventListener('click',()=>cards.filter(c=>!c.classList.contains('hidden')).forEach(c=>c.open=true));root.querySelector('#collapse').addEventListener('click',()=>cards.forEach(c=>c.open=false));})();
 </script>
 </body>
 </html>
