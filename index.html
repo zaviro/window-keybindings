@@ -1,542 +1,136 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
-  <title>Window Keybindings · 交互规范草案</title>
-  <style>
-    :root {
-      color-scheme: light dark;
-      --bg: #f5f6f8;
-      --panel: #ffffff;
-      --panel-2: #f8f9fb;
-      --text: #181a1f;
-      --muted: #666b76;
-      --line: #dfe2e8;
-      --accent: #315efb;
-      --accent-soft: #e9efff;
-      --good: #18794e;
-      --good-soft: #e8f5ee;
-      --draft: #946200;
-      --draft-soft: #fff4d6;
-      --danger: #b42318;
-      --danger-soft: #fff0ee;
-      --shadow: 0 8px 28px rgba(20, 28, 45, .07);
-      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #111318;
-        --panel: #181b22;
-        --panel-2: #20242d;
-        --text: #f2f3f5;
-        --muted: #a9afba;
-        --line: #303642;
-        --accent: #89a8ff;
-        --accent-soft: #222d50;
-        --good: #74d7a9;
-        --good-soft: #17372a;
-        --draft: #ffd06a;
-        --draft-soft: #3a3019;
-        --danger: #ff9d95;
-        --danger-soft: #3d211f;
-        --shadow: none;
-      }
-    }
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.65;
-    }
-    a { color: var(--accent); }
-    button, input { font: inherit; }
-    button { color: inherit; }
-    .shell {
-      width: min(1160px, calc(100% - 28px));
-      margin: 0 auto;
-      padding: 32px 0 72px;
-    }
-    .hero {
-      padding: 30px;
-      border: 1px solid var(--line);
-      background: var(--panel);
-      border-radius: 22px;
-      box-shadow: var(--shadow);
-    }
-    .eyebrow {
-      display: inline-flex;
-      gap: 8px;
-      align-items: center;
-      color: var(--muted);
-      font-size: 14px;
-      font-weight: 700;
-      letter-spacing: .04em;
-      text-transform: uppercase;
-    }
-    h1 { margin: 10px 0 8px; font-size: clamp(30px, 6vw, 54px); line-height: 1.08; }
-    .lead { margin: 0; max-width: 820px; font-size: clamp(17px, 2.5vw, 21px); color: var(--muted); }
-    .thesis {
-      margin-top: 24px;
-      padding: 18px 20px;
-      border-left: 4px solid var(--accent);
-      background: var(--accent-soft);
-      border-radius: 12px;
-      font-size: 18px;
-      font-weight: 650;
-    }
-    .toolbar {
-      position: sticky;
-      top: 0;
-      z-index: 20;
-      margin: 18px 0;
-      padding: 12px;
-      border: 1px solid var(--line);
-      background: color-mix(in srgb, var(--panel) 92%, transparent);
-      backdrop-filter: blur(14px);
-      border-radius: 16px;
-      display: grid;
-      gap: 10px;
-    }
-    .tabs, .filters, .actions { display: flex; gap: 8px; flex-wrap: wrap; }
-    .toolbar button {
-      border: 1px solid var(--line);
-      background: var(--panel-2);
-      border-radius: 10px;
-      padding: 8px 12px;
-      cursor: pointer;
-    }
-    .toolbar button[aria-pressed="true"] {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #fff;
-    }
-    @media (prefers-color-scheme: dark) {
-      .toolbar button[aria-pressed="true"] { color: #10131a; }
-    }
-    .search {
-      width: 100%;
-      border: 1px solid var(--line);
-      background: var(--panel);
-      color: var(--text);
-      border-radius: 10px;
-      padding: 10px 12px;
-      min-height: 44px;
-    }
-    .section { margin-top: 26px; }
-    .section-head { display: flex; justify-content: space-between; gap: 16px; align-items: end; margin-bottom: 12px; }
-    .section-head h2 { margin: 0; font-size: 24px; }
-    .section-head p { margin: 0; color: var(--muted); max-width: 720px; }
-    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
-    .card {
-      grid-column: span 6;
-      border: 1px solid var(--line);
-      background: var(--panel);
-      border-radius: 16px;
-      overflow: clip;
-      min-width: 0;
-    }
-    .card.wide { grid-column: 1 / -1; }
-    .card.third { grid-column: span 4; }
-    @media (max-width: 840px) { .card, .card.third { grid-column: 1 / -1; } }
-    details > summary {
-      list-style: none;
-      cursor: pointer;
-      padding: 18px;
-      display: grid;
-      gap: 8px;
-      min-height: 96px;
-    }
-    details > summary::-webkit-details-marker { display: none; }
-    details > summary::after {
-      content: "展开";
-      justify-self: start;
-      color: var(--accent);
-      font-size: 13px;
-      font-weight: 700;
-    }
-    details[open] > summary::after { content: "收起"; }
-    details[open] > summary { border-bottom: 1px solid var(--line); }
-    .card-title { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
-    .card-title strong { font-size: 18px; }
-    .status {
-      flex: 0 0 auto;
-      display: inline-flex;
-      align-items: center;
-      border-radius: 999px;
-      padding: 3px 8px;
-      font-size: 12px;
-      font-weight: 800;
-    }
-    .status.core { color: var(--good); background: var(--good-soft); }
-    .status.draft { color: var(--draft); background: var(--draft-soft); }
-    .status.open { color: var(--danger); background: var(--danger-soft); }
-    .summary { color: var(--muted); }
-    .body { padding: 18px; }
-    .body h3 { margin: 20px 0 8px; font-size: 16px; }
-    .body h3:first-child { margin-top: 0; }
-    .body p { margin: 8px 0; }
-    .body ul, .body ol { padding-left: 22px; }
-    kbd {
-      display: inline-block;
-      border: 1px solid var(--line);
-      border-bottom-width: 2px;
-      background: var(--panel-2);
-      border-radius: 6px;
-      padding: 1px 7px;
-      font: 650 13px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      white-space: nowrap;
-    }
-    .rule {
-      margin: 12px 0;
-      padding: 12px 14px;
-      border-radius: 10px;
-      background: var(--panel-2);
-      border: 1px solid var(--line);
-    }
-    .flow {
-      display: grid;
-      gap: 8px;
-      margin: 12px 0;
-      padding: 12px;
-      background: var(--panel-2);
-      border-radius: 12px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 13px;
-    }
-    .flow span { display: block; }
-    .grammar {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-    }
-    .grammar > div { padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-2); }
-    .grammar b { display: block; margin-bottom: 5px; }
-    @media (max-width: 760px) { .grammar { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 420px) { .grammar { grid-template-columns: 1fr; } }
-    .keytable { width: 100%; border-collapse: collapse; font-size: 14px; }
-    .keytable th, .keytable td { text-align: left; vertical-align: top; padding: 10px; border-bottom: 1px solid var(--line); }
-    .keytable th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
-    .decision {
-      border-left: 4px solid var(--draft);
-      padding: 13px 14px;
-      background: var(--draft-soft);
-      border-radius: 10px;
-      margin: 10px 0;
-    }
-    .decision strong { display: block; margin-bottom: 4px; }
-    .muted { color: var(--muted); }
-    .hidden { display: none !important; }
-    .empty {
-      display: none;
-      padding: 28px;
-      text-align: center;
-      color: var(--muted);
-      border: 1px dashed var(--line);
-      border-radius: 14px;
-      background: var(--panel);
-    }
-    .empty.show { display: block; }
-    .footer { margin-top: 32px; color: var(--muted); font-size: 14px; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Window Keybindings · Draft v0.2</title>
+<style>
+:root{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;color-scheme:light dark;--bg:#f6f7f9;--panel:#fff;--text:#17191f;--muted:#676d78;--line:#dfe3ea;--accent:#315efb;--accent-bg:#edf1ff;--ok:#18794e;--ok-bg:#eaf6ef;--draft:#8a5a00;--draft-bg:#fff3d4;--hold:#6856b7;--hold-bg:#f0edff} @media(prefers-color-scheme:dark){:root{--bg:#111318;--panel:#191c23;--text:#f2f4f7;--muted:#aab0bb;--line:#303641;--accent:#8faaff;--accent-bg:#222c4c;--ok:#75d7aa;--ok-bg:#17372b;--draft:#ffd171;--draft-bg:#392f19;--hold:#c2b7ff;--hold-bg:#2c2748}}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);line-height:1.65}.wrap{width:min(1080px,calc(100% - 28px));margin:auto;padding:28px 0 72px}.hero{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:28px}.eyebrow{font-size:13px;color:var(--muted);font-weight:800;letter-spacing:.06em;text-transform:uppercase}h1{font-size:clamp(30px,6vw,52px);line-height:1.08;margin:8px 0 10px}h2{margin:0;font-size:22px}p{margin:8px 0}.lead{font-size:18px;max-width:760px}.model{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px}.model>div{border:1px solid var(--line);border-radius:16px;padding:16px;background:color-mix(in srgb,var(--panel) 90%,var(--bg))}.model b{display:block;margin-bottom:5px}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.toolbar button,.toolbar input{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:12px;padding:10px 13px}.toolbar button{cursor:pointer}.toolbar button.active{border-color:var(--accent);background:var(--accent-bg)}.toolbar input{flex:1;min-width:210px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden}.card summary{cursor:pointer;list-style:none;padding:18px;display:flex;align-items:flex-start;gap:12px}.card summary::-webkit-details-marker{display:none}.num{width:31px;height:31px;border-radius:10px;display:grid;place-items:center;background:var(--accent-bg);color:var(--accent);font-weight:800;flex:0 0 auto}.title{min-width:0;flex:1}.title small{display:block;color:var(--muted);font-weight:500;margin-top:2px}.body{border-top:1px solid var(--line);padding:18px}.body h3{font-size:16px;margin:18px 0 6px}.body h3:first-child{margin-top:0}.keys{display:grid;gap:8px}.keyrow{display:grid;grid-template-columns:minmax(110px,170px) 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.keyrow:last-child{border-bottom:0}kbd{display:inline-block;border:1px solid var(--line);border-bottom-width:2px;border-radius:7px;padding:2px 7px;background:var(--bg);font:600 13px ui-monospace,SFMono-Regular,Consolas,monospace}.tag{display:inline-block;font-size:12px;font-weight:800;border-radius:999px;padding:3px 8px;margin-left:6px}.ok{background:var(--ok-bg);color:var(--ok)}.draft{background:var(--draft-bg);color:var(--draft)}.hold{background:var(--hold-bg);color:var(--hold)}.callout{border-left:4px solid var(--accent);background:var(--accent-bg);padding:12px 14px;border-radius:0 12px 12px 0}.removed{opacity:.72;text-decoration:line-through}.decision{display:grid;gap:9px}.decision div{padding:11px 12px;border:1px solid var(--line);border-radius:12px}.footer{color:var(--muted);margin-top:24px;font-size:14px}.hidden{display:none!important}@media(max-width:760px){.model,.grid{grid-template-columns:1fr}.keyrow{grid-template-columns:1fr}.hero{padding:20px}.wrap{width:min(100% - 18px,1080px)}}
+</style>
 </head>
 <body>
-  <main class="shell" id="app">
-    <section class="hero">
-      <div class="eyebrow">Draft v0.1 · 人类阅读入口</div>
-      <h1>Window Keybindings</h1>
-      <p class="lead">一套把窗口当作“有名字的对象”而不是“空间中的矩形”的键盘交互规范。先定义用户意图，再由 niri、Hyprland、Noctalia 或其他后端实现。</p>
-      <div class="thesis">创建窗口是自由的；创建后可以遗忘。切换时只需要知道“我要什么”，不需要记住“它现在在哪里”。</div>
-    </section>
+<main class="wrap" id="app">
+<section class="hero">
+<div class="eyebrow">Draft v0.2 · 语义寻址优先</div>
+<h1>创建后可以忘记，想要时按名字回来</h1>
+<p class="lead">规范不再试图重做 niri 的窗口管理。我们只在原生能力之上增加一层更低记忆负担的寻址：知道角色就直达，知道名字就搜索，只想回到刚才就用历史。</p>
+<div class="model">
+<div><b>知道角色</b><kbd>Mod+B</kbd> / <kbd>Mod+T</kbd><p>focus-or-create</p></div>
+<div><b>知道名字</b><kbd>Mod+D</kbd><p>Noctalia 搜 window / app / workspace</p></div>
+<div><b>回到刚才</b><kbd>Mod+Tab</kbd><p>保留 niri recent windows</p></div>
+</div>
+</section>
 
-    <section class="toolbar" aria-label="规范浏览器">
-      <input id="search" class="search" type="search" placeholder="搜索：browser、workspace、Mod+B、分屏、global…" aria-label="搜索规范">
-      <div class="tabs" aria-label="主题筛选">
-        <button type="button" data-topic="all" aria-pressed="true">全部</button>
-        <button type="button" data-topic="principle" aria-pressed="false">原则</button>
-        <button type="button" data-topic="workspace" aria-pressed="false">工作区</button>
-        <button type="button" data-topic="role" aria-pressed="false">角色</button>
-        <button type="button" data-topic="search" aria-pressed="false">搜索</button>
-        <button type="button" data-topic="layout" aria-pressed="false">布局</button>
-        <button type="button" data-topic="keys" aria-pressed="false">快捷键</button>
-        <button type="button" data-topic="backend" aria-pressed="false">后端</button>
-        <button type="button" data-topic="open" aria-pressed="false">待讨论</button>
-      </div>
-      <div class="actions">
-        <button type="button" id="expand">展开当前结果</button>
-        <button type="button" id="collapse">全部收起</button>
-      </div>
-    </section>
+<div class="toolbar" aria-label="筛选草案">
+<button type="button" class="active" data-filter="all">全部</button>
+<button type="button" data-filter="core">核心</button>
+<button type="button" data-filter="keys">键位</button>
+<button type="button" data-filter="draft">待验证</button>
+<input id="search" type="search" placeholder="搜索 browser、workspace、Noctalia…" aria-label="搜索草案">
+<button type="button" id="expand">展开全部</button>
+<button type="button" id="collapse">收起全部</button>
+</div>
 
-    <div id="empty" class="empty">没有匹配项。尝试换一个关键词或选择“全部”。</div>
+<section class="grid">
+<details class="card" data-tags="core keys browser terminal role">
+<summary><span class="num">1</span><span class="title"><h2>Role：只保留真正高频对象</h2><small>B / T 进入核心；E / A 只保留名字，不占键位</small></span></summary>
+<div class="body">
+<div class="keys">
+<div class="keyrow"><div><kbd>Mod+B</kbd><span class="tag draft">暂定</span></div><div><b>当前 workspace browser</b>：已有则 focus，没有则创建并绑定为 local browser。</div></div>
+<div class="keyrow"><div><kbd>Mod+T</kbd><span class="tag draft">暂定</span></div><div><b>当前 workspace terminal</b>：沿用 niri 官方 T=Terminal，但把默认 spawn 语义升级为 focus-or-create。</div></div>
+<div class="keyrow"><div><kbd>Mod+Alt+B</kbd><span class="tag draft">暂定</span></div><div><b>global-main browser</b>：存在于别处就拉到当前 workspace；不存在才创建。</div></div>
+<div class="keyrow"><div><kbd>Mod+Alt+T</kbd><span class="tag draft">待验证</span></div><div><b>global-main terminal</b>：逻辑同上，但是否值得长期占键仍需实际体验。</div></div>
+<div class="keyrow"><div><kbd>Mod+E</kbd><span class="tag hold">保留不绑定</span></div><div>Editor role 名称保留。编辑器生态和实际主编辑对象尚不稳定，暂不建立肌肉记忆。</div></div>
+<div class="keyrow"><div><kbd>Mod+A</kbd><span class="tag hold">保留不绑定</span></div><div>AI / Assistant role 名称保留。只有未来出现明确、高频、稳定的 AI 对象时再启用。</div></div>
+</div>
+<div class="callout"><b>原则：</b>固定键不是应用收藏夹。只有达到“我经常明确想去这个对象”的稳定 role 才值得占一个字母。</div>
+</div>
+</details>
 
-    <section class="section topic-section" data-topic="principle">
-      <div class="section-head">
-        <div><h2>01 · 先记住五件事</h2><p>这是整套规范的最小心智模型。只看这一节，也应该能理解后面的所有快捷键。</p></div>
-      </div>
-      <div class="grid">
-        <details class="card third spec-card" data-topic="principle" data-status="core">
-          <summary><div class="card-title"><strong>位置不是身份</strong><span class="status core">核心</span></div><div class="summary">窗口在哪里、先后创建顺序、MRU 距离，都不能成为识别窗口的必要条件。</div></summary>
-          <div class="body"><div class="rule"><b>规范：</b>后台窗口的空间位置只是 compositor 的实现细节。</div><h3>为什么</h3><p>“浏览器在左边第三个”要求用户记住偶然状态；“browser”直接复用用户已有的语义记忆。</p><h3>允许的例外</h3><p>当两个窗口此刻同时可见时，左/右关系就在眼前，此时空间导航是合理的。</p></div>
-        </details>
-        <details class="card third spec-card" data-topic="principle" data-status="core">
-          <summary><div class="card-title"><strong>创建后可遗忘</strong><span class="status core">核心</span></div><div class="summary">创建窗口后，不要求 mark、重命名、移动到固定位置或记住工作区。</div></summary>
-          <div class="body"><h3>禁止把管理成本推给用户</h3><p>传统 mark 会引入“命名 → 记忆 → 生命周期维护”的第二套知识。搜索应优先使用用户本来就知道的应用名、窗口标题、项目名。</p><div class="rule">理想状态：创建 → 使用 → 离开。未来需要时直接按名字或 role 找回。</div></div>
-        </details>
-        <details class="card third spec-card" data-topic="principle search" data-status="core">
-          <summary><div class="card-title"><strong>已知目标直接寻址</strong><span class="status core">核心</span></div><div class="summary">知道“我要浏览器”时，不应通过方向键或反复 Tab 去寻找。</div></summary>
-          <div class="body"><p><kbd>Mod+B</kbd> 的意义不是少按几次键，而是消除“它在哪里”的认知步骤。</p><div class="flow"><span>我要 Browser</span><span>→ Mod+B</span><span>→ 当前任务 browser 被激活 / 不存在则创建</span></div></div>
-        </details>
-        <details class="card third spec-card" data-topic="principle search" data-status="core">
-          <summary><div class="card-title"><strong>长尾目标按名字搜索</strong><span class="status core">核心</span></div><div class="summary">不是每个应用都值得占一个字母；2–3 个字符的稳定搜索是兜底。</div></summary>
-          <div class="body"><p>搜索对象应包括 role、具体窗口、named workspace、global-main 和未运行应用。</p><p>搜索排序必须稳定；状态不变时，同一查询不应随机改变第一候选。</p></div>
-        </details>
-        <details class="card third spec-card" data-topic="principle layout" data-status="core">
-          <summary><div class="card-title"><strong>空间只在“同时可见”时有意义</strong><span class="status core">核心</span></div><div class="summary">后台没有二维地图；前台 composition 才有左、右、上下和比例。</div></summary>
-          <div class="body"><p>因此 niri 的横向 strip 并不天然违反本设计：只要隐藏列顺序不要求用户记忆即可。</p><p>布局系统要管理的是“当前可见组合”，不是永久保存整个 workspace 的二维地图。</p></div>
-        </details>
-      </div>
-    </section>
+<details class="card" data-tags="core keys search noctalia launcher">
+<summary><span class="num">2</span><span class="title"><h2>搜索：只保留 Mod+D</h2><small>复用 Noctalia，不再同时维护 Mod+Space</small></span></summary>
+<div class="body">
+<h3>目标</h3>
+<p><kbd>Mod+D</kbd> 打开统一 Destination Search。输入通常 2–3 个字符，结果可以同时包含运行中窗口、应用和 named workspace。</p>
+<div class="decision">
+<div><b>Chrome — GitHub</b> <span class="tag ok">window</span> → 跳转已有窗口</div>
+<div><b>Google Chrome</b> <span class="tag ok">application</span> → 启动应用/新窗口</div>
+<div><b>window-keybindings</b> <span class="tag ok">workspace</span> → 跳转工作区</div>
+</div>
+<h3>为什么复用 Noctalia</h3>
+<p>Noctalia 已有 applications 与 windows provider；先把 windows provider 纳入普通搜索并验证 ranking。只有实际体验不足时，才写薄 provider/plugin，不另造完整 launcher。</p>
+<h3>已删除</h3>
+<p class="removed">Mod+Space → 第二个统一搜索入口</p>
+<p>原因：和 <kbd>Mod+D</kbd> 重叠，同时更容易撞到应用、输入法或桌面快捷键。</p>
+</div>
+</details>
 
-    <section class="section topic-section" data-topic="workspace">
-      <div class="section-head"><div><h2>02 · Workspace：有名字，数字只是别名</h2><p>工作区代表任务上下文，而不是第几个容器。</p></div></div>
-      <div class="grid">
-        <details class="card spec-card" data-topic="workspace" data-status="core">
-          <summary><div class="card-title"><strong>Workspace 必须有语义名称</strong><span class="status core">核心</span></div><div class="summary">例如 main、window-keybindings、learning、media、game。</div></summary>
-          <div class="body"><div class="rule">内部 ID、屏幕位置、当前排序不能成为 workspace 的身份。</div><p>匿名“workspace 4”仍要求用户额外记住“4 = 某项目”。名字本身已经足以表达对象。</p></div>
-        </details>
-        <details class="card spec-card" data-topic="workspace keys" data-status="draft">
-          <summary><div class="card-title"><strong><kbd>Mod+1..9</kbd> 是快速槽位</strong><span class="status draft">暂定</span></div><div class="summary">数字保留肌肉记忆，但不承担永久身份。</div></summary>
-          <div class="body"><p>建议 UI 显示 <code>2: window-keybindings</code>，而不是只显示 <code>2</code>。</p><p>忘记数字映射时，始终可以通过名称搜索进入同一 workspace。</p><div class="decision"><strong>待定</strong>slot 是固定类别（main/project/media），还是用户动态绑定 named workspace？</div></div>
-        </details>
-        <details class="card spec-card" data-topic="workspace search" data-status="core">
-          <summary><div class="card-title"><strong>搜索是数字槽位的兜底</strong><span class="status core">核心</span></div><div class="summary"><kbd>Mod+Space</kbd> → “win” → window-keybindings。</div></summary>
-          <div class="body"><p>因此不需要给每个 workspace 建 mark，也不强迫所有任务挤进 1..9。</p></div>
-        </details>
-        <details class="card spec-card" data-topic="workspace keys" data-status="draft">
-          <summary><div class="card-title"><strong>顺序遍历降级为辅助</strong><span class="status draft">暂定</span></div><div class="summary"><kbd>Mod+PageUp/PageDown</kbd> 只用于“附近那个工作区”。</div></summary>
-          <div class="body"><p>沿用 niri 的成熟习惯，但不能要求用户用顺序来记工作区身份。</p></div>
-        </details>
-      </div>
-    </section>
+<details class="card" data-tags="core workspace name search">
+<summary><span class="num">3</span><span class="title"><h2>Workspace：名字是身份，数字是别名</h2><small>忘掉编号也能通过名字回来</small></span></summary>
+<div class="body">
+<p>长期 workspace 使用名字，例如 <code>main</code>、<code>window-keybindings</code>、<code>learning</code>。内部顺序、workspace ID 和显示器位置都不构成身份。</p>
+<div class="keys">
+<div class="keyrow"><div><kbd>Mod+1..9</kbd></div><div>保留为稳定快速槽位，例如 <code>2 → window-keybindings</code>。</div></div>
+<div class="keyrow"><div><kbd>Mod+D</kbd> → <code>win</code></div><div>忘记数字后按名称搜索恢复，不产生“匿名 workspace 4 是什么”的负担。</div></div>
+</div>
+<p>自动命名属于后续 policy：niri 原生负责 named workspace / 按名 focus；helper 可以根据项目或事件流决定名称。</p>
+</div>
+</details>
 
-    <section class="section topic-section" data-topic="role">
-      <div class="section-head"><div><h2>03 · Role：用户意图，不是应用名</h2><p>Browser、Terminal、Editor、Agent 是稳定语义；Firefox、Ghostty、Zed 只是当前实现。</p></div></div>
-      <div class="grid">
-        <details class="card spec-card" data-topic="role keys" data-status="draft">
-          <summary><div class="card-title"><strong>Local role</strong><span class="status draft">键位暂定</span></div><div class="summary"><kbd>Mod+B</kbd> browser · <kbd>Mod+T</kbd> terminal · <kbd>Mod+E</kbd> editor · <kbd>Mod+A</kbd> agent</div></summary>
-          <div class="body"><h3>语义</h3><p>“当前任务中，我要这个角色。”</p><h3>确定性行为</h3><ol><li>当前 workspace 已绑定该 local role → 激活；</li><li>没有绑定，但存在可认领匹配窗口 → 按确定性规则认领并激活；</li><li>完全没有 → 创建并绑定。</li></ol><p>额外同类窗口仍可以自由创建，但只是 ordinary windows，不应让 role 目标每次随 MRU 漂移。</p></div>
-        </details>
-        <details class="card spec-card" data-topic="role keys" data-status="draft">
-          <summary><div class="card-title"><strong>Global Main role</strong><span class="status draft">键位暂定</span></div><div class="summary"><kbd>Mod+Alt+B</kbd> 表示“全局主浏览器”，Alt 统一表达 scope 提升。</div></summary>
-          <div class="body"><div class="grammar"><div><b>Mod</b>窗口系统层</div><div><b>Alt</b>local → global-main</div><div><b>Shift</b>呈现/结构变体</div><div><b>Ctrl</b>move/send</div></div><h3>关键规则：拉窗口，不拉用户</h3><p>global-main 已存在时，将它召回当前 workspace 并聚焦；不存在则在当前 workspace 创建。默认禁止跳去它原来的 workspace。</p><p>这样用户不需要记住“我刚才从哪里来”。</p></div>
-        </details>
-        <details class="card spec-card" data-topic="role" data-status="core">
-          <summary><div class="card-title"><strong>Global Main 是可漫游对象</strong><span class="status core">核心</span></div><div class="summary">它没有必须返回的 home workspace；物理位置不属于身份。</div></summary>
-          <div class="body"><p>如果 A、B 两个 workspace 都需要同时存在 browser，应各自拥有 local browser；global-main 的职责是“唯一可召回主对象”。</p></div>
-        </details>
-        <details class="card spec-card" data-topic="role open" data-status="open">
-          <summary><div class="card-title"><strong>多实例与认领规则</strong><span class="status open">未解决</span></div><div class="summary">同一 workspace 已有三个 Firefox 时，哪个成为 local browser？</div></summary>
-          <div class="body"><p>当前约束只有两条：</p><ol><li>role slot 一旦绑定，在窗口存活期间保持稳定；</li><li>不能每次偷偷选不同 MRU 窗口。</li></ol><div class="decision"><strong>需要人工验证</strong>自动认领候选的最终确定性规则尚未定案。</div></div>
-        </details>
-      </div>
-    </section>
+<details class="card" data-tags="core keys niri fallback spatial">
+<summary><span class="num">4</span><span class="title"><h2>niri 原生键：完整保留</h2><small>语义导航是加法，不是替代 compositor</small></span></summary>
+<div class="body">
+<p>不再限制方向键，也不删除低频原生操作。它们构成可靠的空间管理与回退层。</p>
+<div class="keys">
+<div class="keyrow"><div><kbd>Mod+O</kbd></div><div>Overview</div></div>
+<div class="keyrow"><div><kbd>Mod+Q</kbd></div><div>Close</div></div>
+<div class="keyrow"><div><kbd>Mod+F</kbd> / <kbd>Shift+F</kbd></div><div>Maximize column / true fullscreen</div></div>
+<div class="keyrow"><div><kbd>Mod+R</kbd></div><div>Preset column width</div></div>
+<div class="keyrow"><div><kbd>Mod+V</kbd></div><div>Floating toggle</div></div>
+<div class="keyrow"><div><kbd>Mod+Tab</kbd></div><div>Recent windows / 回到刚才</div></div>
+<div class="keyrow"><div>方向、Ctrl/Shift 变体</div><div>focus、移动、workspace 重排、consume/expel、resize、center、expand 等原生能力全部保留。</div></div>
+</div>
+</div>
+</details>
 
-    <section class="section topic-section" data-topic="search">
-      <div class="section-head"><div><h2>04 · Search：统一对象寻址</h2><p>搜索不是传统“应用启动器”，而是 window / role / workspace / app 的统一入口。</p></div></div>
-      <div class="grid">
-        <details class="card spec-card" data-topic="search keys" data-status="draft" open>
-          <summary><div class="card-title"><strong><kbd>Mod+Space</kbd> · switch-or-create</strong><span class="status draft">暂定</span></div><div class="summary">优先去已有对象；不存在时才启动。</div></summary>
-          <div class="body"><h3>候选可以同时出现</h3><div class="flow"><span>Firefox — GitHub        [window · current]</span><span>Firefox — YouTube       [window · workspace:media]</span><span>window-keybindings      [workspace]</span><span>browser                 [role · local]</span><span>Firefox                 [application · new]</span></div><h3>建议排序</h3><ol><li>当前 workspace 精确 role / alias；</li><li>当前 workspace 窗口；</li><li>named workspace；</li><li>global-main；</li><li>其他 workspace 运行窗口；</li><li>未运行应用。</li></ol></div>
-        </details>
-        <details class="card spec-card" data-topic="search keys open" data-status="draft">
-          <summary><div class="card-title"><strong><kbd>Mod+D</kbd> · force-new</strong><span class="status draft">暂定</span></div><div class="summary">明确表达“我要再开一个”，与导航彻底分离。</div></summary>
-          <div class="body"><p>沿用 niri 默认 <kbd>Mod+D</kbd> “Run an Application”的语义基础，但将其收窄为 deliberate create。</p><p>对于单实例应用，force-new 至少请求新窗口；最终是否产生独立进程由应用决定。</p><div class="decision"><strong>待定</strong>Noctalia 现有 launcher UI 如何清楚区分“切换/复用”和“明确新建”？</div></div>
-        </details>
-        <details class="card spec-card" data-topic="search keys" data-status="core">
-          <summary><div class="card-title"><strong><kbd>Mod+Tab</kbd> · 只负责“回到刚才”</strong><span class="status core">核心语义</span></div><div class="summary">时间历史不是通用搜索，也不承担“我要 Firefox”。</div></summary>
-          <div class="body"><p><kbd>Alt+Tab</kbd> 可以保留为传统兼容别名 / Noctalia window switcher。</p><p>长期目标：历史甚至可以恢复之前的可见 composition，而不仅是焦点窗口。</p></div>
-        </details>
-      </div>
-    </section>
+<details class="card" data-tags="keys removed compose shift layout">
+<summary><span class="num">5</span><span class="title"><h2>删除：Shift+Role = Compose</h2><small>分屏属于布局层，不绑死到 role 层</small></span></summary>
+<div class="body">
+<p class="removed">Mod+Shift+B → 保留当前窗口并把 Browser 放旁边</p>
+<p>这个语义不够直觉，而且会和 niri 原生大量 Shift 结构操作混淆。用户产生疑惑本身就是信号：不应继续固化。</p>
+<p>分屏、组合、placement 后续单独讨论，优先复用 niri / Hyprland 的布局能力。</p>
+</div>
+</details>
 
-    <section class="section topic-section" data-topic="layout">
-      <div class="section-head"><div><h2>05 · Layout：管理当前可见组合，不管理后台地图</h2><p>“去 Browser”和“保留 Editor 并把 Browser 放旁边”是两个不同用户意图。</p></div></div>
-      <div class="grid">
-        <details class="card spec-card" data-topic="layout keys open" data-status="open">
-          <summary><div class="card-title"><strong>Plain activation</strong><span class="status open">关键未决</span></div><div class="summary"><kbd>Mod+B</kbd> 的呈现结果到底应该多强？</div></summary>
-          <div class="body"><p>已确定的语义只有：“现在主要看 browser”。</p><p>如果 browser 已经在当前可见 composition 中，应只聚焦，不做无意义重排。</p><div class="decision"><strong>尚未定案</strong>目标在后台时，是否总是变成 solo/maximized？还是保留已有 composition？</div><div class="decision"><strong>尚未定案</strong>已有 50/50 split 时，plain activation 是 focus、替换 pane，还是 collapse 为 solo？</div></div>
-        </details>
-        <details class="card spec-card" data-topic="layout keys" data-status="draft">
-          <summary><div class="card-title"><strong>Compose activation</strong><span class="status draft">语法暂定</span></div><div class="summary"><kbd>Shift</kbd> = “保留当前对象，并把目标加入可见区域”。</div></summary>
-          <div class="body"><div class="flow"><span>Mod+B               → local + plain</span><span>Mod+Alt+B           → global + plain</span><span>Mod+Shift+B         → local + compose</span><span>Mod+Alt+Shift+B     → global + compose</span></div><p>优势是 modifier 正交：Alt 只改变作用域，Shift 只改变呈现方式。</p></div>
-        </details>
-        <details class="card spec-card" data-topic="layout open" data-status="draft">
-          <summary><div class="card-title"><strong>默认二分屏</strong><span class="status draft">暂定</span></div><div class="summary">Compose 默认 50/50，目标放右侧。</div></summary>
-          <div class="body"><div class="flow"><span>[ Current ][ Target ]</span></div><p>理由：当前对象通常是主上下文，新对象多为浏览器、终端、参考资料；固定默认比每次询问方向快。</p><div class="decision"><strong>待定</strong>右侧是否足够自然？是否需要 one-shot placement mode 表达 left/right/up/down？</div></div>
-        </details>
-        <details class="card spec-card" data-topic="layout keys" data-status="draft">
-          <summary><div class="card-title"><strong>方向键只控制可见邻居</strong><span class="status draft">暂定</span></div><div class="summary"><kbd>Mod+方向</kbd> 切换可见 pane；不负责寻找屏幕外后台窗口。</div></summary>
-          <div class="body"><p>当空间关系就在眼前时，“去左边”无需记忆；当窗口隐藏在后台时，应该按名字或 role 寻址。</p><p>这也是 niri 实现时最明显需要适配的地方：默认方向导航会继续滚向屏幕外列。</p></div>
-        </details>
-        <details class="card spec-card" data-topic="layout keys" data-status="draft">
-          <summary><div class="card-title"><strong>结构操作进入专用层</strong><span class="status draft">暂定</span></div><div class="summary"><kbd>Mod+Shift+方向</kbd> 重排；<kbd>Mod+R</kbd> 进入 resize mode。</div></summary>
-          <div class="body"><p>低频结构操作适合 mode；高频导航不应该进入 mode。</p><div class="flow"><span>Mod+R → resize mode</span><span>方向键 → 调整边界</span><span>Enter / Esc → 退出</span></div></div>
-        </details>
-        <details class="card spec-card" data-topic="layout keys" data-status="draft">
-          <summary><div class="card-title"><strong>显示状态</strong><span class="status draft">暂定</span></div><div class="summary"><kbd>Mod+F</kbd> solo/maximize · <kbd>Mod+Shift+F</kbd> true fullscreen · <kbd>Mod+V</kbd> floating</div></summary>
-          <div class="body"><p>区分工作模式的 maximize/solo 与真正占满输出的 fullscreen。F = Fill/Fullscreen，V 延续 niri/Hyprland 常见 floating toggle 习惯。</p></div>
-        </details>
-      </div>
-    </section>
+<details class="card" data-tags="core implementation niri ipc focus spawn">
+<summary><span class="num">6</span><span class="title"><h2>实现：niri 默认不是 focus-or-create</h2><small>role 需要一个很薄的 IPC helper</small></span></summary>
+<div class="body">
+<p>niri 官方默认 <kbd>Mod+T</kbd> 的动作是 <code>spawn</code>。它不会先查找已有窗口。</p>
+<div class="callout"><code>key → helper → query windows → match ? focus-window : spawn</code></div>
+<p>global-main 在此基础上再增加 <code>move-window-to-workspace</code>。这些都是 niri IPC 已提供的原子能力，因此无需修改 compositor。</p>
+</div>
+</details>
 
-    <section class="section topic-section" data-topic="keys">
-      <div class="section-head"><div><h2>06 · 快捷键语法</h2><p>目标不是背几十个组合，而是先学 modifier 语法，再自然推导具体动作。</p></div></div>
-      <div class="card wide spec-card" data-topic="keys" data-status="draft">
-        <div class="body">
-          <div class="grammar">
-            <div><b>Mod</b>窗口 / compositor 系统层</div>
-            <div><b>Alt</b>把 local 作用域提升为 global-main</div>
-            <div><b>Shift</b>呈现/结构变体：compose、move</div>
-            <div><b>Ctrl</b>把当前对象 send/move 到目标</div>
-          </div>
-          <p class="muted">其中 Ctrl 语义直接借鉴 niri 默认体系中“导航键 + Ctrl = 移动当前窗口/列到那里”的一致设计。</p>
-        </div>
-      </div>
-      <div class="card wide spec-card" data-topic="keys" data-status="draft" style="margin-top:14px">
-        <div class="body">
-          <table class="keytable">
-            <thead><tr><th>快捷键</th><th>暂定语义</th><th>为什么选它</th></tr></thead>
-            <tbody>
-              <tr><td><kbd>Mod+Space</kbd></td><td>统一对象搜索，switch-or-create</td><td>Noctalia launcher 习惯；Space 易按，适合最高频入口</td></tr>
-              <tr><td><kbd>Mod+D</kbd></td><td>搜索并明确 force-new</td><td>继承 niri “Run Application”语义，并消除切换/新建歧义</td></tr>
-              <tr><td><kbd>Mod+B</kbd></td><td>local browser</td><td>B = Browser</td></tr>
-              <tr><td><kbd>Mod+T</kbd></td><td>local terminal</td><td>T = Terminal；继承 niri 默认终端键</td></tr>
-              <tr><td><kbd>Mod+E</kbd></td><td>local editor</td><td>E = Editor；但与 Explorer/File Manager 习惯存在冲突，待验证</td></tr>
-              <tr><td><kbd>Mod+A</kbd></td><td>local agent</td><td>A = Agent</td></tr>
-              <tr><td><kbd>Mod+Alt+角色键</kbd></td><td>对应 global-main role</td><td>Alt 统一表示 global scope</td></tr>
-              <tr><td><kbd>Mod+Shift+角色键</kbd></td><td>保留当前窗口并 compose 目标</td><td>Shift 统一表示结构/呈现变体</td></tr>
-              <tr><td><kbd>Mod+Tab</kbd></td><td>previous/recent</td><td>成熟的时间导航语义；只回答“回到刚才”</td></tr>
-              <tr><td><kbd>Mod+1..9</kbd></td><td>named workspace 的快速槽位</td><td>成熟肌肉记忆，但数字不作为身份</td></tr>
-              <tr><td><kbd>Mod+Ctrl+1..9</kbd></td><td>send 当前窗口到槽位</td><td>Ctrl 延续 niri 的 move/send 语法</td></tr>
-              <tr><td><kbd>Mod+PageUp/Down</kbd></td><td>相邻 workspace</td><td>沿用 niri；仅辅助，不承担身份记忆</td></tr>
-              <tr><td><kbd>Mod+方向</kbd></td><td>当前可见 composition 内切换 pane</td><td>空间关系此刻可见，认知成本低</td></tr>
-              <tr><td><kbd>Mod+Shift+方向</kbd></td><td>重排当前可见 pane</td><td>Shift = 结构变体</td></tr>
-              <tr><td><kbd>Mod+R</kbd></td><td>resize mode</td><td>R = Resize；niri/Hyprland 都有尺寸调整先例</td></tr>
-              <tr><td><kbd>Mod+F</kbd></td><td>solo / maximize</td><td>F = Fill</td></tr>
-              <tr><td><kbd>Mod+Shift+F</kbd></td><td>true fullscreen</td><td>继承 niri 默认语义</td></tr>
-              <tr><td><kbd>Mod+V</kbd></td><td>floating toggle</td><td>延续 niri/Hyprland 常见习惯</td></tr>
-              <tr><td><kbd>Mod+Q</kbd></td><td>关闭当前窗口</td><td>Q = Quit；niri 默认</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <section class="section topic-section" data-topic="backend">
-      <div class="section-head"><div><h2>07 · 后端适配：规范不属于某个 WM</h2><p>后端只负责把同一用户语义翻译成各自机制。</p></div></div>
-      <div class="grid">
-        <details class="card spec-card" data-topic="backend" data-status="core">
-          <summary><div class="card-title"><strong>niri</strong><span class="status core">语义层足够</span></div><div class="summary">后台 strip 可以退化成实现细节；真正需要适配的是 composition。</div></summary>
-          <div class="body"><p>已有 named workspace、窗口/工作区 JSON IPC、按 ID focus、move-to-workspace、recent windows、floating/fullscreen/maximize 等能力。</p><p><b>主要摩擦：</b>默认 <kbd>Mod+方向</kbd> 会沿无限 strip 找到屏幕外窗口；二维 split/composition 需要组合列、同列窗口和尺寸动作。</p></div>
-        </details>
-        <details class="card spec-card" data-topic="backend" data-status="core">
-          <summary><div class="card-title"><strong>Hyprland</strong><span class="status core">完整实验后端</span></div><div class="summary">named/special workspace、focuswindow、tags/rules、master、submap 更天然承载布局语义。</div></summary>
-          <div class="body"><p>更适合 explicit split、master/secondary composition、resize mode、one-shot placement 和 global-main summon。</p><p>但不能反过来要求用户记住 Hyprland 的后台布局树；规范仍然以语义对象为第一层。</p></div>
-        </details>
-        <details class="card spec-card" data-topic="backend search" data-status="core">
-          <summary><div class="card-title"><strong>Noctalia</strong><span class="status core">交互前端</span></div><div class="summary">适合承担 launcher/search、window switcher、workspace/role 状态展示。</div></summary>
-          <div class="body"><p>真正的 focus、move、spawn、role registry、composition 应由 compositor/helper 层完成。</p><p>当前规范保留 <kbd>Mod+Space</kbd> launcher/search 和 <kbd>Alt+Tab</kbd> 传统 switcher 的成熟语义。</p></div>
-        </details>
-      </div>
-    </section>
-
-    <section class="section topic-section" data-topic="open">
-      <div class="section-head"><div><h2>08 · 实现前必须讨论</h2><p>这些不是缺失文档，而是故意不提前定死的设计决策。</p></div></div>
-      <div class="grid">
-        <details class="card spec-card" data-topic="open layout" data-status="open" open><summary><div class="card-title"><strong>Plain activation 的布局结果</strong><span class="status open">高优先级</span></div><div class="summary">focus、替换 pane、还是 collapse 到 solo？</div></summary><div class="body"><ol><li>目标已可见：基本确定只 focus。</li><li>目标在后台：是否成为主视图尚未确定。</li><li>已有 split：是否保持 composition 尚未确定。</li></ol></div></details>
-        <details class="card spec-card" data-topic="open layout" data-status="open"><summary><div class="card-title"><strong>Compose 的方向语法</strong><span class="status open">高优先级</span></div><div class="summary">默认右侧 50/50 是否足够？如何表达 left/up/down？</div></summary><div class="body"><p>直接使用两个非 modifier 键（如 Left+B）对 niri/Hyprland 都不自然，可能需要 one-shot placement mode / leader。</p></div></details>
-        <details class="card spec-card" data-topic="open keys" data-status="open"><summary><div class="card-title"><strong><kbd>Mod+E</kbd> 是否应属于 Editor</strong><span class="status open">待验证</span></div><div class="summary">E=Editor 很直接，但不少桌面把 E 理解为 Explorer/File Manager。</div></summary><div class="body"><p>应通过实际使用验证肌肉记忆冲突，而不是仅凭字母助记定案。</p></div></details>
-        <details class="card spec-card" data-topic="open search" data-status="open"><summary><div class="card-title"><strong><kbd>Mod+D</kbd> 的新建 UI</strong><span class="status open">待验证</span></div><div class="summary">如何让用户明确知道这是 force-new，而不是普通 launcher？</div></summary><div class="body"><p>需要与 Noctalia 的搜索 UI 一起设计。</p></div></details>
-        <details class="card spec-card" data-topic="open workspace" data-status="open"><summary><div class="card-title"><strong>Workspace slot 策略</strong><span class="status open">待定</span></div><div class="summary">1..9 是固定类别，还是动态绑定 named workspace？</div></summary><div class="body"><p>目标是兼顾肌肉记忆与语义名称，不能退化成匿名编号。</p></div></details>
-        <details class="card spec-card" data-topic="open" data-status="open"><summary><div class="card-title"><strong>多显示器模型</strong><span class="status open">待定</span></div><div class="summary">named workspace 全局唯一还是 output-local？global-main 如何跨屏召回？</div></summary><div class="body"><p>需要先确定“任务上下文”和“物理输出”谁拥有更高层级。</p></div></details>
-        <details class="card spec-card" data-topic="open role" data-status="open"><summary><div class="card-title"><strong>Global Main 是 move 还是 clone/new</strong><span class="status open">待定</span></div><div class="summary">某些场景是否不应从另一个 workspace 抢走主实例？</div></summary><div class="body"><p>当前草案默认 move，因为 global-main 是可漫游唯一对象；如需要并存，应优先使用 local role。</p></div></details>
-        <details class="card spec-card" data-topic="open search" data-status="open"><summary><div class="card-title"><strong>History 是否恢复 composition</strong><span class="status open">长期</span></div><div class="summary"><kbd>Mod+Tab</kbd> 是否只回窗口，还是回完整 view state？</div></summary><div class="body"><p>恢复 composition 更符合“回到刚才”，但实现复杂度明显更高，因此当前是 SHOULD 而非 MUST。</p></div></details>
-        <details class="card spec-card" data-topic="open role" data-status="open"><summary><div class="card-title"><strong>Local role 自动认领</strong><span class="status open">待定</span></div><div class="summary">多个匹配窗口时需要可预测且稳定的确定性规则。</div></summary><div class="body"><p>不能让 role 每次随 MRU 漂移；普通搜索则可以列出全部窗口让用户选择。</p></div></details>
-        <details class="card spec-card" data-topic="open search" data-status="open"><summary><div class="card-title"><strong>搜索前缀是否需要</strong><span class="status open">低优先级</span></div><div class="summary">是否提供 window:/ws:/app: 等可选限定，但默认无需输入？</div></summary><div class="body"><p>默认路径应保持 2–3 字符 + Enter；前缀只能作为消歧增强，不能成为日常负担。</p></div></details>
-      </div>
-    </section>
-
-    <section class="section topic-section" data-topic="principle">
-      <div class="section-head"><div><h2>09 · 新设计的检查清单</h2><p>以后每加入一个快捷键或行为，都先过这七个问题。</p></div></div>
-      <div class="card wide spec-card" data-topic="principle" data-status="core"><div class="body"><ol><li>用户已经知道目标对象吗？如果知道，为什么还要搜索位置？</li><li>这个动作是否要求用户记住窗口的偶然状态？</li><li>创建后是否产生新的维护义务？</li><li>相同 modifier 在其他键上是否保持同一语义？</li><li>操作结束后，用户是否还需要记住“我从哪里来”？</li><li>这个行为是在表达用户意图，还是暴露 compositor 内部数据结构？</li><li>如果换掉 niri / Hyprland，这个快捷键的用户意义还能保持吗？</li></ol></div></div>
-    </section>
-
-    <footer class="footer">
-      <p>这是讨论用 Draft，而不是实现约束。完整原始文本仍保留在 <a href="./SPEC.md">SPEC.md</a>，来源与现有生态对照保留在 <a href="./REFERENCES.md">REFERENCES.md</a>。</p>
-    </footer>
-  </main>
-
-  <script>
-    (() => {
-      const root = document.getElementById('app');
-      const search = root.querySelector('#search');
-      const topicButtons = [...root.querySelectorAll('[data-topic].tabs button, .tabs button[data-topic]')];
-      const cards = [...root.querySelectorAll('.spec-card')];
-      const sections = [...root.querySelectorAll('.topic-section')];
-      const empty = root.querySelector('#empty');
-      let activeTopic = 'all';
-
-      const normalize = (value) => value.toLocaleLowerCase('zh-CN').trim();
-
-      function matchesTopic(card) {
-        if (activeTopic === 'all') return true;
-        return (card.dataset.topic || '').split(/\s+/).includes(activeTopic);
-      }
-
-      function matchesSearch(card) {
-        const q = normalize(search.value);
-        if (!q) return true;
-        return normalize(card.textContent).includes(q);
-      }
-
-      function applyFilters() {
-        let visible = 0;
-        cards.forEach(card => {
-          const show = matchesTopic(card) && matchesSearch(card);
-          card.classList.toggle('hidden', !show);
-          if (show) visible++;
-        });
-        sections.forEach(section => {
-          const hasVisible = [...section.querySelectorAll('.spec-card')].some(card => !card.classList.contains('hidden'));
-          section.classList.toggle('hidden', !hasVisible);
-        });
-        empty.classList.toggle('show', visible === 0);
-      }
-
-      root.querySelectorAll('.tabs button[data-topic]').forEach(button => {
-        button.addEventListener('click', () => {
-          activeTopic = button.dataset.topic;
-          root.querySelectorAll('.tabs button[data-topic]').forEach(btn => btn.setAttribute('aria-pressed', String(btn === button)));
-          applyFilters();
-        });
-      });
-
-      search.addEventListener('input', applyFilters);
-
-      root.querySelector('#expand').addEventListener('click', () => {
-        cards.filter(card => !card.classList.contains('hidden') && card.tagName === 'DETAILS').forEach(card => { card.open = true; });
-      });
-
-      root.querySelector('#collapse').addEventListener('click', () => {
-        cards.filter(card => card.tagName === 'DETAILS').forEach(card => { card.open = false; });
-      });
-
-      applyFilters();
-    })();
-  </script>
+<details class="card" data-tags="draft questions validation">
+<summary><span class="num">7</span><span class="title"><h2>下一轮只验证这些问题</h2><small>避免继续在纸面上增加功能</small></span></summary>
+<div class="body">
+<ol>
+<li>Noctalia 的 windows + applications 搜索排序是否已经足够自然？</li>
+<li><kbd>Mod+B</kbd>/<kbd>Mod+T</kbd> focus-or-create 是否真的比纯 spawn 更顺手？</li>
+<li>多个 Browser 窗口存在时，local browser role 应怎样稳定绑定？</li>
+<li><kbd>Mod+Alt+T</kbd> 是否真的值得存在？</li>
+<li>named workspace 是否需要自动命名，还是搜索+手动命名已经足够？</li>
+<li>分屏是否完全交给 niri 原生操作就够了？只有体验不足时再设计 placement 语义。</li>
+<li>什么时候 Editor / AI role 达到值得启用固定键的频率？</li>
+</ol>
+</div>
+</details>
+</section>
+<p class="footer">Window Keybindings · Draft v0.2 · 规范先于实现，但真实使用体验优先于纸面完整性。</p>
+</main>
+<script>
+(()=>{const root=document.getElementById('app');if(root.dataset.ready)return;root.dataset.ready='1';const cards=[...root.querySelectorAll('.card')];const buttons=[...root.querySelectorAll('[data-filter]')];const search=root.querySelector('#search');let filter='all';function apply(){const q=search.value.trim().toLowerCase();cards.forEach(card=>{const tags=(card.dataset.tags||'').toLowerCase();const text=card.textContent.toLowerCase();const okFilter=filter==='all'||tags.includes(filter);const okSearch=!q||text.includes(q);card.classList.toggle('hidden',!(okFilter&&okSearch));});}buttons.forEach(btn=>btn.addEventListener('click',()=>{filter=btn.dataset.filter;buttons.forEach(b=>b.classList.toggle('active',b===btn));apply();}));search.addEventListener('input',apply);root.querySelector('#expand').addEventListener('click',()=>cards.filter(c=>!c.classList.contains('hidden')).forEach(c=>c.open=true));root.querySelector('#collapse').addEventListener('click',()=>cards.forEach(c=>c.open=false));})();
+</script>
 </body>
 </html>
