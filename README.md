@@ -1,39 +1,64 @@
 # Window Keybindings
 
-一套面向键盘流桌面的**窗口、工作区、搜索与布局交互规范草案**。
+一套面向键盘流桌面的**窗口、工作区与搜索寻址规范草案**。
 
-> 核心目标：**创建窗口是自由的；创建后可以遗忘。切换时只需要知道“我要什么”，不需要记住“它现在在哪里”。**
+当前阶段只定义用户语义与暂定键位，不实现 compositor 配置。目标不是替代 niri / Hyprland 的窗口管理能力，而是在其上增加一层更低记忆负担的**语义寻址**。
 
-## 阅读方式
+## 当前核心模型
 
-本仓库现在分成两层：
+只保留三种主要寻址方式：
 
-- [`index.html`](./index.html)：**人类主入口**。单页交互式规范，按“原则 → Workspace → Role → Search → Layout → 快捷键 → 后端 → 待讨论”递进；所有细节以卡片展开，可筛选、搜索、展开/收起。
-- [`SPEC.md`](./SPEC.md)：完整原始规范文本，适合全文检索、diff 与后续实现引用。
-- [`REFERENCES.md`](./REFERENCES.md)：niri、Hyprland、Noctalia 等现有设计对本规范的影响与参考依据。
+1. **知道角色** → 直接 role 键，例如 `Mod+B`、`Mod+T`。
+2. **知道名字** → `Mod+D` 打开统一搜索，输入 2–3 个字符选择 window / application / workspace。
+3. **只想回到刚才** → `Mod+Tab` 使用最近窗口历史。
 
-`index.html` 是自包含文件，不需要构建步骤。直接用浏览器打开即可；如果未来启用 GitHub Pages，也可以直接作为站点首页。
+窗口的物理位置、创建顺序和 MRU 距离都不是身份。
 
-## 当前状态
+## 当前暂定键位
 
-**Draft v0.1 — 只讨论设计，不实现。**
+| 键 | 语义 | 状态 |
+|---|---|---|
+| `Mod+D` | Noctalia 统一搜索入口；窗口可跳转，应用可启动，后续加入 workspace | 暂定 |
+| `Mod+B` | 当前 workspace 的 browser；已有则跳转，没有则创建 | 暂定 |
+| `Mod+T` | 当前 workspace 的 terminal；已有则跳转，没有则创建 | 暂定；沿用 niri 的 T=Terminal |
+| `Mod+Alt+B` | global-main browser；拉到当前 workspace，没有则创建 | 暂定 |
+| `Mod+Alt+T` | global-main terminal；拉到当前 workspace，没有则创建 | 暂定 |
+| `Mod+E` | Editor role 槽位 | **保留但暂不绑定** |
+| `Mod+A` | AI / assistant role 槽位 | **保留但暂不绑定** |
+| `Mod+Tab` | 最近窗口 / 回到刚才 | 保留 niri 原生语义 |
 
-目前已经基本确定的是：
+`Mod+Space` 不再作为本规范入口；`Mod+Shift+角色键 = compose` 的方案已删除。
 
-- 位置不是窗口身份；后台窗口顺序不要求用户记忆。
-- 已知高频目标使用 role 直接寻址，长尾目标使用名称搜索。
-- Workspace 应有名字，`1..9` 只是快速槽位而不是身份。
-- 切换/复用与明确新建必须是两个不同意图。
-- Local role 与 Global Main role 是不同作用域。
-- Global Main 默认把窗口拉到当前上下文，而不是把用户送去窗口原来的位置。
-- `Mod+Tab` 只承担“回到刚才”的时间导航。
-- 空间方向只在窗口同时可见时承担语义。
+## 原生窗口管理能力
 
-最需要继续人工讨论的是：
+niri 已经成熟且好用的窗口管理键原则上全部保留，包括：
 
-- plain role activation 到底只 focus、替换 pane，还是回到 solo 主视图；
-- compose 的默认方向与比例，以及如何低成本表达 left/right/up/down；
-- `Mod+Space` 与 `Mod+D` 的最终 switch-or-create / force-new 交互；
-- workspace slot、多显示器、global-main 漫游与 local role 自动认领规则。
+- `Mod+O / Q / F / R / V / Shift+F / Tab`；
+- 方向焦点；
+- 窗口/列移动；
+- workspace 切换与重排；
+- consume / expel；
+- resize / preset width；
+- floating、maximize、fullscreen 等。
 
-在这些问题达成共识前，不应把 niri、Hyprland 或任何 compositor 的实现限制写成规范本身。
+这些是**空间操作与回退层**，不需要因为语义寻址而删除。
+
+## Workspace
+
+长期 workspace 应有名字；`1..9` 只是快速槽位，不是身份。例如：
+
+```text
+1 → main
+2 → window-keybindings
+3 → learning
+```
+
+忘记数字时仍应能通过名称搜索进入。
+
+## 文档
+
+- [`index.html`](./index.html)：面向人的交互式草案入口。
+- [`SPEC.md`](./SPEC.md)：完整规范与设计理由。
+- [`REFERENCES.md`](./REFERENCES.md)：niri、Hyprland、Noctalia 的参考依据。
+
+当前状态：**Draft v0.2**。
