@@ -1,6 +1,6 @@
 # Window Keybindings Specification
 
-状态：**Draft v0.2**
+状态：**Draft v0.3**
 
 本文定义窗口、工作区与搜索的用户语义。实现可以由 niri IPC、Hyprland dispatcher、Noctalia provider 或独立 helper 完成；实现细节不应反过来成为用户必须记住的东西。
 
@@ -20,7 +20,7 @@
 
 ## 1.2 三种主要寻址方式
 
-只保留三个高层入口：
+当前核心只保留三个高层入口。
 
 ### A. 已知角色：直接 role 键
 
@@ -44,7 +44,7 @@ Enter
 - 当前与其他 workspace 的运行中窗口；
 - application；
 - named workspace；
-- 后续可扩展 role / global-main 对象。
+- 后续可扩展 role / global-main / alias 对象。
 
 通常输入前 2–3 个字符即可选择。
 
@@ -62,13 +62,13 @@ MRU 只回答“刚才那个是什么”，不承担寻找任意已知目标的�
 
 ## 2.1 `Mod+D` 是唯一主搜索入口
 
-v0.2 删除 `Mod+Space`。
+v0.2 起删除 `Mod+Space`。
 
 原因：
 
-- `Mod+Space` 与许多应用/输入法/桌面习惯容易冲突；
+- `Mod+Space` 与许多应用、输入法、桌面习惯容易冲突；
 - 同时保留 `Mod+Space` 与 `Mod+D` 会制造两个高度重叠的搜索入口；
-- niri 默认已经使用 `Mod+D` 表达 Run Application，扩展成 Destination / Discover 搜索比重新引入入口更自然。
+- niri 默认已经使用 `Mod+D` 表达 Run Application，扩展成 Destination / Discover 搜索比重新引入第二入口更自然。
 
 ---
 
@@ -87,7 +87,7 @@ window-keybindings        [workspace]
 
 选择 application → 启动应用/新窗口，具体行为由应用能力决定。
 
-因此搜索器不必替用户猜测“你要哪一个 Chrome”；匹配结果本身就表达目标对象。
+因此搜索器不必替用户猜测“你要哪一个 Chrome”；匹配结果本身表达目标对象。
 
 如果 Noctalia 原生 ranking / provider 组合不足，再写一个薄 provider/plugin，而不是另造完整 launcher UI。
 
@@ -101,7 +101,7 @@ window-keybindings        [workspace]
 Mod → F → I → Firefox
 ```
 
-这种序列需要 leader/submap 系统，并不属于 niri 普通 `modifier + key` 绑定模型。
+这种序列需要 leader/submap/chord 系统，并不属于 niri 普通 `modifier + key` 绑定模型。
 
 长尾应用暂时统一使用：
 
@@ -109,20 +109,18 @@ Mod → F → I → Firefox
 Mod+D → 输入 2–3 字母 → Enter
 ```
 
-只有真正达到高频、稳定且值得 O(1) 访问的对象，才升级成固定 role 键。
+只有真正达到高频、稳定且值得 O(1) 访问的对象，才升级成固定 role 或 alias。
 
 ---
 
 # 3. Role 模型
 
-Role 表达的是用户意图，不是某个永久绑定的具体软件。
-
-例如：
+Role 表达用户意图，不是某个永久绑定的具体软件。
 
 ```text
-browser  → 当前可能由 Google Chrome / Firefox 实现
-terminal → 当前可能由 Ghostty 实现
-editor   → 未来再决定
+browser   → 当前可能由 Google Chrome / Firefox 实现
+terminal  → 当前可能由 Ghostty 实现
+editor    → 未来再决定
 assistant → 未来再决定
 ```
 
@@ -147,11 +145,7 @@ Mod+T → 当前 workspace terminal
 
 `Mod+T` 同理。
 
-### 注意
-
-niri 官方默认的 `Mod+T` 是 `spawn terminal`，不是 focus-or-create。v0.2 在保留 `T = Terminal` 肌肉记忆的同时，**升级其用户语义**。
-
-实现层可用 niri 官方 IPC 查询 windows、按 window ID focus；不存在时再 spawn。
+niri 官方默认的 `Mod+T` 是 `spawn terminal`，不是 focus-or-create。规范保留 `T = Terminal` 的成熟语义，但把动作升级为 focus-or-create。
 
 ---
 
@@ -178,8 +172,6 @@ Mod+Alt+T → global-main terminal
 
 > **移动对象，而不是移动用户。**
 
-调用主实例后，不要求用户记住自己原先来自哪个 workspace。
-
 ---
 
 ## 3.3 `Mod+E` 与 `Mod+A`：保留语义槽位，暂不绑定
@@ -191,19 +183,15 @@ A → AI / Assistant
 
 目前不进入实际快捷键集合。
 
-原因：
-
 ### Editor
 
-编辑器生态仍快速变化，Zed、Neovim、AI coding tools 等的边界和使用方式并不稳定。没有必要提前把 `E` 固化成长期肌肉记忆。
+编辑器生态和实际主编辑对象仍不稳定，没有必要提前把 `E` 固化成长期肌肉记忆。
 
 ### AI / Assistant
 
 当前并没有稳定定义的“AI 窗口”：它可能是 ChatGPT 桌面应用、浏览器窗口、Claude Code/Codex 终端进程，或者未来完全不同的交互形态。
 
-只有出现明确且高频的固定 AI 对象后，`Mod+A` 才应启用。
-
-因此 E/A 现在只是 registry 中的保留命名，不占用物理键位。
+只有出现明确且高频的固定对象后，`Mod+A` 才应启用。
 
 ---
 
@@ -244,13 +232,13 @@ Enter
 
 进入 `window-keybindings`。
 
-因此数字提供肌肉记忆，名称提供可恢复的语义记忆。
+数字提供肌肉记忆，名称提供可恢复的语义记忆。
 
 ---
 
 ## 4.3 自动命名属于 policy 层
 
-niri 原生支持 named workspace、按名称 focus、运行时设置 workspace name。
+niri 原生负责 named workspace、按名称 focus、运行时设置 workspace name。
 
 “根据项目目录/第一个重要窗口自动给 workspace 命名”属于更高层 policy，可由 event-stream helper 实现，不应写死到 compositor 身份模型中。
 
@@ -258,11 +246,7 @@ niri 原生支持 named workspace、按名称 focus、运行时设置 workspace 
 
 # 5. niri 原生窗口管理能力全部保留
 
-v0.2 不再试图用语义导航替换 niri 的空间操作系统。
-
-原则：
-
-> **语义寻址是新增层；原生窗口管理是可靠 fallback。**
+语义寻址是新增层，不替代 niri 的空间操作系统。
 
 以下 niri 默认/成熟操作原则上保留：
 
@@ -275,20 +259,20 @@ v0.2 不再试图用语义导航替换 niri 的空间操作系统。
 - `Mod+Tab` recent windows；
 - 方向 focus；
 - `Mod+Ctrl+方向` 等窗口/列移动；
-- workspace 上下移动、重排；
+- workspace 切换、移动与重排；
 - consume / expel；
 - window height / column width 调整；
 - center / expand 等。
 
-即使高频场景很少使用某些键，也没有必要删掉。它们保留 compositor 的完整原生操作能力。
+即使高频场景很少使用某些键，也没有必要删掉。它们保留 compositor 的完整原生能力与可靠 fallback。
 
 ---
 
-# 6. 删除的 v0.1 设计
+# 6. 删除的早期设计
 
 ## 6.1 删除 `Mod+Space`
 
-理由见搜索模型：与 `Mod+D` 重复且冲突面更大。
+与 `Mod+D` 重复且冲突面更大。
 
 ## 6.2 删除 `Mod+Shift+Role = compose`
 
@@ -300,24 +284,19 @@ Mod+Shift+B → 保留当前窗口并把 Browser 放旁边
 
 删除原因：
 
-- `Shift = compose` 并不直觉；
-- 会与 niri 已存在的大量 Shift/结构移动语义混在一起；
-- 分屏/组合属于布局层，不应绑死在 role 层；
-- 用户对该语义产生疑惑本身就是失败信号。
+- `Shift = compose` 不够直觉；
+- 会与 niri 已有大量 Shift 结构操作混淆；
+- 分屏/组合属于布局层，不应绑死到 role 层。
 
-分屏与组合后续单独设计，优先复用 niri / Hyprland 原生布局能力。
+未来的布局组合如果实现，优先采用更直接的**方向语义**，见第 8 节。
 
 ## 6.3 不限制 `Mod+方向` 只在可见窗口内
 
-旧草案试图重新定义方向键，只让它处理当前可见 composition。
-
-v0.2 取消这个限制。
-
-niri 的原生方向导航、滚动 strip、窗口重排全部保留。即使语义搜索降低它们的使用频率，它们仍然是必要的底层窗口管理能力和回退方案。
+niri 原生方向导航、滚动 strip、窗口重排全部保留。语义搜索只是减少其作为“找后台窗口”工具的必要性，不应破坏原始能力。
 
 ---
 
-# 7. 暂定快捷键表
+# 7. 当前暂定快捷键表
 
 ## 7.1 语义寻址
 
@@ -345,29 +324,165 @@ niri 的原生方向导航、滚动 strip、窗口重排全部保留。即使语
 
 ---
 
-# 8. 实现边界
+# 8. Future / Experimental：可选扩展层
 
-## 8.1 niri 默认 `spawn` 不会替我们做 focus-or-create
+本节记录未来值得实测的能力。它们**不是当前核心规范，也不预占当前键位**。
 
-`Mod+T { spawn ... }` 的职责只是执行命令。
+## 8.1 Semantic Alias：用户自定义直接地址
 
-真正的 role 行为应由很薄的 helper 完成：
+### 动机
+
+不是所有稳定高频对象都适合抽象成 `browser`、`terminal` 这种通用 role。
+
+未来可以允许用户把任意稳定目标注册为 **Semantic Alias**，并自行分配一个 `Mod+字母` 形式的直接入口，例如：
+
+```text
+Mod+M → music
+Mod+C → ChatGPT
+Mod+G → 固定 GitHub / browser profile
+```
+
+这里只定义语义，不规定这些示例必须存在。
+
+### Alias 与 Role 的关系
+
+它们共享同一寻址模型：
+
+```text
+目标已有 → focus / summon
+目标不存在 → create
+```
+
+差异在于：
+
+- **Role** 是通用意图类别，例如 browser、terminal；
+- **Alias** 是用户为某个真实高频对象创建的自定义直接地址。
+
+因此 `Mod+B` / `Mod+T` 可以视为系统预设的 role direct bindings；未来新增 alias 不需要修改核心寻址模型。
+
+### 约束
+
+- Alias 必须是可选的；
+- 不要求用户给所有窗口命名；
+- 只有实际高频对象才值得升级为 alias；
+- 长尾对象仍然走 `Mod+D` 搜索；
+- Alias 不应退化成需要维护大量 mark 的第二套命名系统。
+
+---
+
+## 8.2 Directional Activation：一次完成“保留 + 激活 + 排列”
+
+### 动机
+
+未来可能需要一个比“先切换窗口，再手动整理布局”更直接的动作：
+
+> 保留当前窗口，同时启动/拉取目标，并把两者立即排列成用户想要的可见组合。
+
+概念示例：
+
+```text
+Mod + ← + B
+```
+
+表示：保留当前窗口，激活 local browser，并组成左右布局。
+
+### 当前首选方向规则
+
+**箭头描述目标窗口的最终位置。**
+
+因此：
+
+```text
+← Browser
+→ [ Browser ][ Current ]
+
+→ Browser
+→ [ Current ][ Browser ]
+
+↑ Terminal
+→ Terminal 在 Current 上方
+
+↓ Terminal
+→ Terminal 在 Current 下方
+```
+
+选择这一规则的原因：方向直接修饰“我要加入的目标”，可以自然读成：
+
+```text
+← Browser = Browser 放左边
+```
+
+相比“← 表示把原窗口放左边、目标填另一侧”，它少了一层反向推理。
+
+### 与现有 role / global scope 的组合
+
+理想语义可以保持正交：
+
+```text
+Mod+B            → local Browser
+Mod+Alt+B        → global-main Browser
+Mod+←+B          → local Browser 放左边并保留 Current
+Mod+Alt+←+B      → global-main Browser 拉来并放左边
+```
+
+也就是说：
+
+```text
+Alt       → 目标作用域
+方向       → 目标最终位置
+B/T/Alias → 目标对象
+```
+
+这只是规范层的组合模型，不代表 niri 当前能把它直接绑定成一个普通 keybind。
+
+### 暂定行为
+
+如果未来实现，优先考虑：
+
+1. 保留当前窗口；
+2. 解析目标（role 或 alias）；
+3. 已存在则 focus/summon，不存在则 create；
+4. 把目标排列到箭头指定方向；
+5. 默认把焦点落到目标窗口，因为整条命令的主语仍然是目标对象。
+
+### 尚未决定
+
+以下问题必须实际体验后再定：
+
+1. 目标已经在当前屏幕可见时，是只 focus、重排，还是保持原布局？
+2. 目标在当前 workspace 但位于屏幕外时，是否移动其 compositor 内部位置？
+3. 当前已经是两窗/三窗布局时，再执行方向激活应该：新增 pane、替换某个 pane，还是重新形成二分？
+4. 默认比例是 `50/50`、`60/40`，还是继承当前布局？
+5. 激活后是否始终 focus target；某些工作流是否应该保留 Current focus？
+6. 上下分割在 niri 的列模型中是否足够自然？
+7. 真实物理输入应使用 chord、leader、submap、mode 还是 helper 捕获？
+8. Alias 是否也允许完全相同的方向组合语法？当前倾向是允许。
+
+在这些问题没有实测前，Directional Activation 只作为 Future / Experimental 语义保留。
+
+---
+
+# 9. 实现边界
+
+## 9.1 niri 默认 `spawn` 不会替我们做 focus-or-create
+
+真正的 role / alias 行为应由很薄的 helper 完成：
 
 ```text
 key bind
   ↓
-role helper
+semantic helper
   ↓
 query niri windows
   ├─ match → focus-window --id
   └─ no match → spawn
 ```
 
-Global-main 再增加 move-window-to-workspace。
+Global-main 再增加 `move-window-to-workspace`。
 
 ---
 
-## 8.2 搜索优先实验 Noctalia
+## 9.2 搜索优先实验 Noctalia
 
 第一阶段不开发新 launcher。
 
@@ -382,7 +497,9 @@ Global-main 再增加 move-window-to-workspace。
 
 ---
 
-# 9. 仍待验证的问题
+# 10. 仍待验证的问题
+
+## 当前核心
 
 1. `Mod+Alt+T` 的 global-main terminal 是否真的高频，还是只需要 browser global-main？
 2. 一个 workspace 出现多个 browser 窗口时，哪个实例应成为 local browser role slot？
@@ -390,12 +507,19 @@ Global-main 再增加 move-window-to-workspace。
 4. Noctalia 的 window/application ranking 是否已经足够，还是需要统一 provider？
 5. named workspace 是否需要自动命名；如果需要，命名来源是项目目录、窗口标题还是手动搜索创建？
 6. workspace slot `1..9` 应固定为类别还是允许动态映射？
-7. 分屏/组合是否完全依赖 compositor 原生操作，还是以后需要一个独立的 one-shot placement 语义？
-8. `Mod+E` / `Mod+A` 何时达到“值得启用”的真实使用频率？
+7. `Mod+E` / `Mod+A` 何时达到“值得启用”的真实使用频率？
+
+## Future / Experimental
+
+8. Semantic Alias 是否会自然保持少量高频对象，还是最终重新形成 mark 式维护负担？
+9. Directional Activation 的箭头是否确实应该表示 target 的最终位置？
+10. Directional Activation 在已有多 pane composition 中应该如何表现？
+11. Directional Activation 的默认比例与 focus 策略是什么？
+12. niri / Hyprland 上最自然的物理 chord 实现分别是什么？
 
 ---
 
-# 10. 评估新快捷键的准则
+# 11. 评估新快捷键的准则
 
 新增任何键位前依次问：
 
@@ -404,7 +528,8 @@ Global-main 再增加 move-window-to-workspace。
 3. 是否与已有成熟默认键冲突？
 4. 是否可以通过统一搜索解决，而不增加固定键？
 5. 这个键是否真的足够高频，值得进入长期肌肉记忆？
-6. modifier 在其他键上是否保持一致语义？
+6. modifier / direction 在其他键上是否保持一致语义？
 7. 如果换掉 niri / Hyprland，这个快捷键的用户意义能否保持？
+8. 新功能是否仍满足“创建后可遗忘”？
 
 如果不能明显降低认知或操作成本，就不应加入核心规范。
