@@ -1,6 +1,6 @@
 # Window Keybindings Specification
 
-状态：**Draft v0.3**
+状态：**Draft v0.4**
 
 本文定义窗口、工作区与搜索的用户语义。实现可以由 niri IPC、Hyprland dispatcher、Noctalia provider 或独立 helper 完成；实现细节不应反过来成为用户必须记住的东西。
 
@@ -124,6 +124,16 @@ editor    → 未来再决定
 assistant → 未来再决定
 ```
 
+同一个 role 有两种不同作用域的实例语义：
+
+```text
+Terminal
+├── Global Main        # 0..1，全局唯一
+└── Local Instances    # 0..N，分布于各 workspace
+```
+
+**Global Main 与 Local Instance 是不同身份。** Global Main 即使物理上位于当前 workspace，也不因此成为该 workspace 的 Local Instance。
+
 ---
 
 ## 3.1 Local role
@@ -135,23 +145,27 @@ Mod+B → 当前 workspace browser
 Mod+T → 当前 workspace terminal
 ```
 
-### 规范语义：focus-or-create
+### 规范语义：local focus-or-create
 
 以 `Mod+B` 为例：
 
-1. 当前 workspace 已有 local browser 实例 → focus；
-2. 没有 local browser → 创建 browser；
-3. 创建后该实例成为当前 workspace 的 local browser role slot。
+1. 只在当前 workspace 查找 browser 的 **Local Instances**；
+2. 查找时始终排除 browser 的 Global Main，即使 Global Main 此刻也位于当前 workspace；
+3. 没有 Local Instance → 创建一个新的 local browser；
+4. 恰好一个 Local Instance → focus；
+5. 两个及以上 Local Instances → **选择策略暂未决定**。
 
 `Mod+T` 同理。
 
-niri 官方默认的 `Mod+T` 是 `spawn terminal`，不是 focus-or-create。规范保留 `T = Terminal` 的成熟语义，但把动作升级为 focus-or-create。
+因此 `Mod+T` 表达的是“使用当前 workspace 的普通 terminal 实例”，而不是“使用全局主终端”。这里不把 local 实例称为 `main`，避免与 Global Main 混淆。
+
+niri 官方默认的 `Mod+T` 是 `spawn terminal`，不是 focus-or-create。规范保留 `T = Terminal` 的成熟语义，但把动作升级为 local focus-or-create。
 
 ---
 
 ## 3.2 Global-main role
 
-### 暂定
+### 暂定绑定
 
 ```text
 Mod+Alt+B → global-main browser
@@ -160,17 +174,47 @@ Mod+Alt+T → global-main terminal
 
 `Alt` 暂定统一表示：
 
-> 从当前 workspace 的 local role 提升到全局主实例。
+> 从 workspace-local 实例作用域提升到该 role 的全局唯一主实例。
 
-### 行为
+### 身份与唯一性
 
-1. global-main 实例在当前 workspace → focus；
-2. 存在但位于其他 workspace → **把窗口拉到当前 workspace 并 focus**；
-3. 不存在 → 当前 workspace 创建并登记为 global-main。
+每个 role 在整个会话中最多存在一个 Global Main：
 
-核心原则：
+```text
+browser  → 0..1 global-main browser
+terminal → 0..1 global-main terminal
+```
 
-> **移动对象，而不是移动用户。**
+Global Main **语义上不属于任何 workspace**。它当前出现在哪个 workspace 只是 compositor 的物理放置状态，不构成其身份，也不改变其 Global Main 属性。
+
+因此：
+
+- Global Main 可以物理上出现在任意 workspace；
+- workspace 切换、移动窗口都不改变 Global Main 身份；
+- local role 查找始终排除 Global Main；
+- `Mod+Alt+Role` 无论 Global Main 当前在哪，都指向同一个全局唯一实例。
+
+### 激活行为
+
+1. Global Main 已存在且位于当前 workspace → focus；
+2. Global Main 已存在但位于其他 workspace → 激活它，**具体采用 summon 还是 jump 暂未决定**；
+3. Global Main 不存在 → 创建一个对应 role 的实例，并登记为 Global Main。
+
+跨 workspace 激活有两个候选 policy：
+
+```text
+Summon
+当前 workspace ← Global Main
+focus Global Main
+```
+
+```text
+Jump
+切换到 Global Main 当前所在 workspace
+focus Global Main
+```
+
+这只是激活 policy，不影响 Global Main 的身份模型。Global Main 无论采用哪一种 policy，都仍然是跨 workspace、全局唯一的 role 实例。
 
 ---
 
@@ -303,10 +347,10 @@ niri 原生方向导航、滚动 strip、窗口重排全部保留。语义搜索
 | 快捷键 | 语义 | 状态 |
 |---|---|---|
 | `Mod+D` | Noctalia 统一搜索：window / application / 后续 workspace | 暂定 |
-| `Mod+B` | local browser：focus-or-create | 暂定 |
-| `Mod+T` | local terminal：focus-or-create | 暂定；保留 niri T=Terminal |
-| `Mod+Alt+B` | global-main browser：summon-or-create | 暂定 |
-| `Mod+Alt+T` | global-main terminal：summon-or-create | 暂定 |
+| `Mod+B` | local browser：排除 Global Main 后 focus-or-create | 暂定；多 local 候选策略 TBD |
+| `Mod+T` | local terminal：排除 Global Main 后 focus-or-create | 暂定；多 local 候选策略 TBD |
+| `Mod+Alt+B` | global-main browser：activate-or-create | 暂定；summon vs jump TBD |
+| `Mod+Alt+T` | global-main terminal：activate-or-create | 暂定；summon vs jump TBD |
 | `Mod+E` | Editor role | **保留，不绑定** |
 | `Mod+A` | AI / Assistant role | **保留，不绑定** |
 | `Mod+Tab` | previous/recent window | 保留 niri |
@@ -349,7 +393,7 @@ Mod+G → 固定 GitHub / browser profile
 它们共享同一寻址模型：
 
 ```text
-目标已有 → focus / summon
+目标已有 → focus / activate
 目标不存在 → create
 ```
 
@@ -376,7 +420,7 @@ Mod+G → 固定 GitHub / browser profile
 
 未来可能需要一个比“先切换窗口，再手动整理布局”更直接的动作：
 
-> 保留当前窗口，同时启动/拉取目标，并把两者立即排列成用户想要的可见组合。
+> 保留当前窗口，同时启动/激活目标，并把两者立即排列成用户想要的可见组合。
 
 概念示例：
 
@@ -422,7 +466,7 @@ Mod + ← + B
 Mod+B            → local Browser
 Mod+Alt+B        → global-main Browser
 Mod+←+B          → local Browser 放左边并保留 Current
-Mod+Alt+←+B      → global-main Browser 拉来并放左边
+Mod+Alt+←+B      → 激活 global-main Browser；若采用 summon policy，则拉来并放左边
 ```
 
 也就是说：
@@ -441,7 +485,7 @@ B/T/Alias → 目标对象
 
 1. 保留当前窗口；
 2. 解析目标（role 或 alias）；
-3. 已存在则 focus/summon，不存在则 create；
+3. 已存在则 focus/activate，不存在则 create；
 4. 把目标排列到箭头指定方向；
 5. 默认把焦点落到目标窗口，因为整条命令的主语仍然是目标对象。
 
@@ -478,7 +522,12 @@ query niri windows
   └─ no match → spawn
 ```
 
-Global-main 再增加 `move-window-to-workspace`。
+Local role helper 必须把对应 role 的 Global Main 从当前 workspace 候选集中排除。
+
+Global Main helper 还需要维护“每个 role 最多一个 Global Main”的身份状态。跨 workspace 激活最终需要根据 policy 选择：
+
+- summon：移动 Global Main 到当前 workspace 后 focus；或
+- jump：切换到 Global Main 当前 workspace 后 focus。
 
 ---
 
@@ -502,20 +551,21 @@ Global-main 再增加 `move-window-to-workspace`。
 ## 当前核心
 
 1. `Mod+Alt+T` 的 global-main terminal 是否真的高频，还是只需要 browser global-main？
-2. 一个 workspace 出现多个 browser 窗口时，哪个实例应成为 local browser role slot？
-3. global-main 被拉走后，原 workspace 是否需要任何占位/恢复逻辑？
-4. Noctalia 的 window/application ranking 是否已经足够，还是需要统一 provider？
-5. named workspace 是否需要自动命名；如果需要，命名来源是项目目录、窗口标题还是手动搜索创建？
-6. workspace slot `1..9` 应固定为类别还是允许动态映射？
-7. `Mod+E` / `Mod+A` 何时达到“值得启用”的真实使用频率？
+2. 当前 workspace 出现两个及以上同 role 的 Local Instances 时，`Mod+Role` 应如何选择：MRU、显式选择、循环，还是其他策略？
+3. Global Main 位于其他 workspace 时，`Mod+Alt+Role` 应采用 **summon** 还是 **jump**？
+4. 如果采用 summon，Global Main 被拉走后，原 workspace 是否需要任何占位/恢复逻辑？
+5. Noctalia 的 window/application ranking 是否已经足够，还是需要统一 provider？
+6. named workspace 是否需要自动命名；如果需要，命名来源是项目目录、窗口标题还是手动搜索创建？
+7. workspace slot `1..9` 应固定为类别还是允许动态映射？
+8. `Mod+E` / `Mod+A` 何时达到“值得启用”的真实使用频率？
 
 ## Future / Experimental
 
-8. Semantic Alias 是否会自然保持少量高频对象，还是最终重新形成 mark 式维护负担？
-9. Directional Activation 的箭头是否确实应该表示 target 的最终位置？
-10. Directional Activation 在已有多 pane composition 中应该如何表现？
-11. Directional Activation 的默认比例与 focus 策略是什么？
-12. niri / Hyprland 上最自然的物理 chord 实现分别是什么？
+9. Semantic Alias 是否会自然保持少量高频对象，还是最终重新形成 mark 式维护负担？
+10. Directional Activation 的箭头是否确实应该表示 target 的最终位置？
+11. Directional Activation 在已有多 pane composition 中应该如何表现？
+12. Directional Activation 的默认比例与 focus 策略是什么？
+13. niri / Hyprland 上最自然的物理 chord 实现分别是什么？
 
 ---
 
