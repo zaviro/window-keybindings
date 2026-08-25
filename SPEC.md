@@ -1,6 +1,6 @@
 # Window Keybindings Specification
 
-状态：**Draft v0.4**
+状态：**Draft v0.5**
 
 本文定义窗口、工作区与搜索的用户语义。实现可以由 niri IPC、Hyprland dispatcher、Noctalia provider 或独立 helper 完成；实现细节不应反过来成为用户必须记住的东西。
 
@@ -27,9 +27,11 @@
 ```text
 Mod+B → browser
 Mod+T → terminal
+Mod+E → editor
+Mod+Alt+A → agent global-main
 ```
 
-用户已经知道“我要浏览器”时，不应再通过方向、Alt-Tab 次数或搜索位置寻找。
+用户已经知道“我要浏览器 / 终端 / 编辑器 / Agent”时，不应再通过方向、Alt-Tab 次数或搜索位置寻找。
 
 ### B. 已知名字：统一搜索
 
@@ -115,49 +117,70 @@ Mod+D → 输入 2–3 字母 → Enter
 
 # 3. Role 模型
 
-Role 表达用户意图，不是某个永久绑定的具体软件。
+Role 表达用户意图，不是窗口的位置，也不要求永久绑定某个实现软件。
+
+v0.5 的初始实现映射为：
 
 ```text
-browser   → 当前可能由 Google Chrome / Firefox 实现
-terminal  → 当前可能由 Ghostty 实现
-editor    → 未来再决定
-assistant → 未来再决定
+browser  → Google Chrome
+terminal → Ghostty
+editor   → Zed
+agent    → ChatGPT
 ```
 
-同一个 role 有两种不同作用域的实例语义：
+未来可以替换实现应用而不改变快捷键的用户语义。
+
+普通 role 可以同时具有两种作用域的实例语义：
 
 ```text
-Terminal
+Terminal / Browser / Editor
 ├── Global Main        # 0..1，全局唯一
 └── Local Instances    # 0..N，分布于各 workspace
 ```
 
 **Global Main 与 Local Instance 是不同身份。** Global Main 即使物理上位于当前 workspace，也不因此成为该 workspace 的 Local Instance。
 
+Agent 是 v0.5 的特殊 global-only role：ChatGPT 当前只使用单实例，因此不定义 Agent Local Instance。
+
 ---
 
 ## 3.1 Local role
 
-### 暂定绑定
+### v0.5 绑定
 
 ```text
 Mod+B → 当前 workspace browser
 Mod+T → 当前 workspace terminal
+Mod+E → 当前 workspace editor
 ```
+
+Agent 不提供 `Mod+A` local binding。
 
 ### 规范语义：local focus-or-create
 
-以 `Mod+B` 为例：
+以 `Mod+T` 为例：
 
-1. 只在当前 workspace 查找 browser 的 **Local Instances**；
-2. 查找时始终排除 browser 的 Global Main，即使 Global Main 此刻也位于当前 workspace；
-3. 没有 Local Instance → 创建一个新的 local browser；
+1. 只在当前 workspace 查找 terminal 的 **Local Instances**；
+2. 查找时始终排除 terminal 的 Global Main，即使 Global Main 此刻也位于当前 workspace；
+3. 没有 Local Instance → 创建一个新的 local terminal；
 4. 恰好一个 Local Instance → focus；
-5. 两个及以上 Local Instances → **选择策略暂未决定**。
+5. 两个及以上 Local Instances → focus **MRU Local Instance**。
 
-`Mod+T` 同理。
+Browser 与 Editor 同理。
 
-因此 `Mod+T` 表达的是“使用当前 workspace 的普通 terminal 实例”，而不是“使用全局主终端”。这里不把 local 实例称为 `main`，避免与 Global Main 混淆。
+MRU 只作为“多个已经符合 role + workspace 条件的候选之间的消歧策略”，不成为窗口身份本身。
+
+因此：
+
+```text
+Mod+Role
+→ current workspace
+→ match role
+→ exclude Global Main
+→ 0: create local
+→ 1: focus
+→ 2+: focus MRU
+```
 
 niri 官方默认的 `Mod+T` 是 `spawn terminal`，不是 focus-or-create。规范保留 `T = Terminal` 的成熟语义，但把动作升级为 local focus-or-create。
 
@@ -165,16 +188,18 @@ niri 官方默认的 `Mod+T` 是 `spawn terminal`，不是 focus-or-create。规
 
 ## 3.2 Global-main role
 
-### 暂定绑定
+### v0.5 绑定
 
 ```text
 Mod+Alt+B → global-main browser
 Mod+Alt+T → global-main terminal
+Mod+Alt+E → global-main editor
+Mod+Alt+A → global-main agent
 ```
 
-`Alt` 暂定统一表示：
+`Alt` 统一表示：
 
-> 从 workspace-local 实例作用域提升到该 role 的全局唯一主实例。
+> 从 workspace-local 作用域提升到该 role 的全局唯一主实例。
 
 ### 身份与唯一性
 
@@ -183,6 +208,8 @@ Mod+Alt+T → global-main terminal
 ```text
 browser  → 0..1 global-main browser
 terminal → 0..1 global-main terminal
+editor   → 0..1 global-main editor
+agent    → 0..1 global-main agent
 ```
 
 Global Main **语义上不属于任何 workspace**。它当前出现在哪个 workspace 只是 compositor 的物理放置状态，不构成其身份，也不改变其 Global Main 属性。
@@ -194,48 +221,51 @@ Global Main **语义上不属于任何 workspace**。它当前出现在哪个 wo
 - local role 查找始终排除 Global Main；
 - `Mod+Alt+Role` 无论 Global Main 当前在哪，都指向同一个全局唯一实例。
 
-### 激活行为
+### v0.5 激活 policy：Summon
 
-1. Global Main 已存在且位于当前 workspace → focus；
-2. Global Main 已存在但位于其他 workspace → 激活它，**具体采用 summon 还是 jump 暂未决定**；
-3. Global Main 不存在 → 创建一个对应 role 的实例，并登记为 Global Main。
-
-跨 workspace 激活有两个候选 policy：
+Global Main 位于其他 workspace 时，**移动对象，而不是移动用户**：
 
 ```text
-Summon
 当前 workspace ← Global Main
 focus Global Main
 ```
 
+完整行为：
+
+1. Global Main 已存在且位于当前 workspace → focus；
+2. Global Main 已存在但位于其他 workspace → move 到当前 workspace，再 focus；
+3. Global Main 不存在 → 创建新的对应 role 实例，登记为 Global Main，再 focus。
+
+因此：
+
 ```text
-Jump
-切换到 Global Main 当前所在 workspace
-focus Global Main
+Mod+Alt+Role
+→ resolve Global Main
+→ absent: create + register
+→ elsewhere: summon to current workspace
+→ focus
 ```
 
-这只是激活 policy，不影响 Global Main 的身份模型。Global Main 无论采用哪一种 policy，都仍然是跨 workspace、全局唯一的 role 实例。
+v0.5 不做原 workspace 的占位或恢复逻辑。Global Main 本来就没有 workspace 语义所有权，被 summon 后原 workspace 直接失去该物理窗口即可。
 
 ---
 
-## 3.3 `Mod+E` 与 `Mod+A`：保留语义槽位，暂不绑定
+## 3.3 Agent：global-only single-instance role
 
 ```text
-E → Editor
-A → AI / Assistant
+A → Agent
+implementation → ChatGPT
+binding → Mod+Alt+A
 ```
 
-目前不进入实际快捷键集合。
+ChatGPT 当前按单实例应用处理，因此 Agent 不建立 Local / Global 两套实例：
 
-### Editor
+- 已存在匹配的 ChatGPT 窗口 → 该窗口天然视为 Agent Global Main；
+- 位于其他 workspace → summon 到当前 workspace；
+- 不存在 → 启动 ChatGPT，出现的窗口即为 Agent Global Main；
+- 不绑定 `Mod+A`。
 
-编辑器生态和实际主编辑对象仍不稳定，没有必要提前把 `E` 固化成长期肌肉记忆。
-
-### AI / Assistant
-
-当前并没有稳定定义的“AI 窗口”：它可能是 ChatGPT 桌面应用、浏览器窗口、Claude Code/Codex 终端进程，或者未来完全不同的交互形态。
-
-只有出现明确且高频的固定对象后，`Mod+A` 才应启用。
+这使 Agent 与 Browser / Terminal / Editor 在 role 层同级，但实例策略更简单。
 
 ---
 
@@ -278,6 +308,8 @@ Enter
 
 数字提供肌肉记忆，名称提供可恢复的语义记忆。
 
+具体 `1..9` 映射暂不阻塞 v0.5 实现。
+
 ---
 
 ## 4.3 自动命名属于 policy 层
@@ -285,6 +317,8 @@ Enter
 niri 原生负责 named workspace、按名称 focus、运行时设置 workspace name。
 
 “根据项目目录/第一个重要窗口自动给 workspace 命名”属于更高层 policy，可由 event-stream helper 实现，不应写死到 compositor 身份模型中。
+
+v0.5 不实现自动命名。
 
 ---
 
@@ -340,26 +374,28 @@ niri 原生方向导航、滚动 strip、窗口重排全部保留。语义搜索
 
 ---
 
-# 7. 当前暂定快捷键表
+# 7. v0.5 快捷键表
 
 ## 7.1 语义寻址
 
-| 快捷键 | 语义 | 状态 |
+| 快捷键 | 语义 | v0.5 行为 |
 |---|---|---|
-| `Mod+D` | Noctalia 统一搜索：window / application / 后续 workspace | 暂定 |
-| `Mod+B` | local browser：排除 Global Main 后 focus-or-create | 暂定；多 local 候选策略 TBD |
-| `Mod+T` | local terminal：排除 Global Main 后 focus-or-create | 暂定；多 local 候选策略 TBD |
-| `Mod+Alt+B` | global-main browser：activate-or-create | 暂定；summon vs jump TBD |
-| `Mod+Alt+T` | global-main terminal：activate-or-create | 暂定；summon vs jump TBD |
-| `Mod+E` | Editor role | **保留，不绑定** |
-| `Mod+A` | AI / Assistant role | **保留，不绑定** |
+| `Mod+D` | Noctalia 统一搜索 | window / application；workspace provider 后续接入 |
+| `Mod+B` | local browser | 排除 Global Main；0=create，1=focus，2+=MRU |
+| `Mod+T` | local terminal | 排除 Global Main；0=create，1=focus，2+=MRU |
+| `Mod+E` | local editor / Zed | 排除 Global Main；0=create，1=focus，2+=MRU |
+| `Mod+Alt+B` | global-main browser | summon-or-create |
+| `Mod+Alt+T` | global-main terminal | summon-or-create |
+| `Mod+Alt+E` | global-main editor / Zed | summon-or-create |
+| `Mod+Alt+A` | global-main agent / ChatGPT | single-instance summon-or-create |
+| `Mod+A` | Agent local | **不绑定** |
 | `Mod+Tab` | previous/recent window | 保留 niri |
 
 ## 7.2 Workspace
 
 | 快捷键 | 语义 |
 |---|---|
-| `Mod+1..9` | named workspace 的快速槽位 |
+| `Mod+1..9` | named workspace 的快速槽位；映射待实测 |
 | niri 原生 workspace 键 | 保留 |
 
 ## 7.3 原生窗口管理
@@ -370,20 +406,20 @@ niri 原生方向导航、滚动 strip、窗口重排全部保留。语义搜索
 
 # 8. Future / Experimental：可选扩展层
 
-本节记录未来值得实测的能力。它们**不是当前核心规范，也不预占当前键位**。
+本节记录未来值得实测的能力。它们**不是当前核心规范，也不阻塞 v0.5 实现**。
 
 ## 8.1 Semantic Alias：用户自定义直接地址
 
 ### 动机
 
-不是所有稳定高频对象都适合抽象成 `browser`、`terminal` 这种通用 role。
+不是所有稳定高频对象都适合抽象成 `browser`、`terminal`、`editor`、`agent` 这种通用 role。
 
 未来可以允许用户把任意稳定目标注册为 **Semantic Alias**，并自行分配一个 `Mod+字母` 形式的直接入口，例如：
 
 ```text
 Mod+M → music
-Mod+C → ChatGPT
 Mod+G → 固定 GitHub / browser profile
+Mod+P → 某个长期项目对象
 ```
 
 这里只定义语义，不规定这些示例必须存在。
@@ -399,10 +435,8 @@ Mod+G → 固定 GitHub / browser profile
 
 差异在于：
 
-- **Role** 是通用意图类别，例如 browser、terminal；
+- **Role** 是通用意图类别，例如 browser、terminal、editor、agent；
 - **Alias** 是用户为某个真实高频对象创建的自定义直接地址。
-
-因此 `Mod+B` / `Mod+T` 可以视为系统预设的 role direct bindings；未来新增 alias 不需要修改核心寻址模型。
 
 ### 约束
 
@@ -450,13 +484,11 @@ Mod + ← + B
 → Terminal 在 Current 下方
 ```
 
-选择这一规则的原因：方向直接修饰“我要加入的目标”，可以自然读成：
+方向直接修饰“我要加入的目标”：
 
 ```text
 ← Browser = Browser 放左边
 ```
-
-相比“← 表示把原窗口放左边、目标填另一侧”，它少了一层反向推理。
 
 ### 与现有 role / global scope 的组合
 
@@ -466,28 +498,18 @@ Mod + ← + B
 Mod+B            → local Browser
 Mod+Alt+B        → global-main Browser
 Mod+←+B          → local Browser 放左边并保留 Current
-Mod+Alt+←+B      → 激活 global-main Browser；若采用 summon policy，则拉来并放左边
+Mod+Alt+←+B      → summon global-main Browser 并放左边
 ```
 
 也就是说：
 
 ```text
-Alt       → 目标作用域
-方向       → 目标最终位置
-B/T/Alias → 目标对象
+Alt         → Global Main
+方向         → 目标最终位置
+B/T/E/Alias → 目标对象
 ```
 
-这只是规范层的组合模型，不代表 niri 当前能把它直接绑定成一个普通 keybind。
-
-### 暂定行为
-
-如果未来实现，优先考虑：
-
-1. 保留当前窗口；
-2. 解析目标（role 或 alias）；
-3. 已存在则 focus/activate，不存在则 create；
-4. 把目标排列到箭头指定方向；
-5. 默认把焦点落到目标窗口，因为整条命令的主语仍然是目标对象。
+Agent 当前是 global-only，因此若未来支持方向组合，只考虑 `Mod+Alt+方向+A`，不定义 local `Mod+方向+A`。
 
 ### 尚未决定
 
@@ -495,9 +517,9 @@ B/T/Alias → 目标对象
 
 1. 目标已经在当前屏幕可见时，是只 focus、重排，还是保持原布局？
 2. 目标在当前 workspace 但位于屏幕外时，是否移动其 compositor 内部位置？
-3. 当前已经是两窗/三窗布局时，再执行方向激活应该：新增 pane、替换某个 pane，还是重新形成二分？
+3. 当前已经是两窗/三窗布局时，再执行方向激活应该新增 pane、替换某个 pane，还是重新形成二分？
 4. 默认比例是 `50/50`、`60/40`，还是继承当前布局？
-5. 激活后是否始终 focus target；某些工作流是否应该保留 Current focus？
+5. 激活后是否始终 focus target？
 6. 上下分割在 niri 的列模型中是否足够自然？
 7. 真实物理输入应使用 chord、leader、submap、mode 还是 helper 捕获？
 8. Alias 是否也允许完全相同的方向组合语法？当前倾向是允许。
@@ -506,66 +528,115 @@ B/T/Alias → 目标对象
 
 ---
 
-# 9. 实现边界
+# 9. v0.5 实现边界
 
-## 9.1 niri 默认 `spawn` 不会替我们做 focus-or-create
+## 9.1 role 行为由薄 helper 完成
 
-真正的 role / alias 行为应由很薄的 helper 完成：
+niri 默认 `spawn` 不会替我们做 focus-or-create。
 
 ```text
 key bind
   ↓
 semantic helper
   ↓
-query niri windows
-  ├─ match → focus-window --id
-  └─ no match → spawn
+query niri windows/workspaces
+  ↓
+apply role policy
 ```
 
-Local role helper 必须把对应 role 的 Global Main 从当前 workspace 候选集中排除。
+Local role：
 
-Global Main helper 还需要维护“每个 role 最多一个 Global Main”的身份状态。跨 workspace 激活最终需要根据 policy 选择：
+```text
+query current workspace windows
+→ match role
+→ exclude role Global Main
+→ 0: spawn
+→ 1: focus
+→ 2+: choose greatest focus_timestamp / MRU
+```
 
-- summon：移动 Global Main 到当前 workspace 后 focus；或
-- jump：切换到 Global Main 当前 workspace 后 focus。
+Global Main：
+
+```text
+resolve registered Global Main
+→ absent: spawn new instance + register
+→ elsewhere: move-window-to-workspace current
+→ focus-window
+```
+
+只为真正需要身份区分的 Global Main 保存最小运行时状态。Local Instances 不登记、不持久化。
+
+建议状态放在 `$XDG_RUNTIME_DIR/window-keybindings/`，只在当前登录会话有效，并在每次使用时对照 niri 当前窗口列表校验失效 window id。
+
+Agent / ChatGPT 因单实例不需要额外区分 Local 与 Global：任何现有匹配窗口都可以直接作为 Agent Global Main。
 
 ---
 
-## 9.2 搜索优先实验 Noctalia
+## 9.2 v0.5 role 映射先静态声明
+
+第一阶段不做动态 role 注册系统，不做 UI，不做常驻 daemon。
+
+概念上只需要类似：
+
+```text
+browser:
+  match = Google Chrome app_id
+  spawn = google-chrome
+
+terminal:
+  match = Ghostty app_id
+  spawn = ghostty
+
+editor:
+  match = Zed app_id
+  spawn = zed
+
+agent:
+  match = ChatGPT app_id
+  spawn = ChatGPT launcher command
+  global_only = true
+```
+
+实际 `app_id` 与启动命令以本机 niri 查询结果和 NixOS 安装方式为准，在实现阶段确认。
+
+---
+
+## 9.3 搜索优先实验 Noctalia
 
 第一阶段不开发新 launcher。
 
 先验证：
 
-- windows provider 是否可以作为 global provider；
-- application 与 window 结果的排序是否自然；
+- windows provider 作为 global provider；
+- application 与 window 结果的排序；
 - 2–3 字符后 Enter 是否稳定；
-- 是否能加入 workspace provider / 自定义 provider。
+- workspace provider 是否需要通过 dmenu/custom provider 补充。
 
 只有实际体验不足时再实现薄扩展。
 
 ---
 
-# 10. 仍待验证的问题
+# 10. v0.5 之后仍待实测的问题
 
-## 当前核心
+这些问题不阻塞当前实现：
 
-1. `Mod+Alt+T` 的 global-main terminal 是否真的高频，还是只需要 browser global-main？
-2. 当前 workspace 出现两个及以上同 role 的 Local Instances 时，`Mod+Role` 应如何选择：MRU、显式选择、循环，还是其他策略？
-3. Global Main 位于其他 workspace 时，`Mod+Alt+Role` 应采用 **summon** 还是 **jump**？
-4. 如果采用 summon，Global Main 被拉走后，原 workspace 是否需要任何占位/恢复逻辑？
-5. Noctalia 的 window/application ranking 是否已经足够，还是需要统一 provider？
-6. named workspace 是否需要自动命名；如果需要，命名来源是项目目录、窗口标题还是手动搜索创建？
-7. workspace slot `1..9` 应固定为类别还是允许动态映射？
-8. `Mod+E` / `Mod+A` 何时达到“值得启用”的真实使用频率？
+## 当前功能体验
+
+1. Browser / Terminal / Editor 的 Global Main 是否都实际高频；低频项后续可删除绑定。
+2. 多 Local 使用 MRU 是否符合直觉；如果不合适，再实验循环或显式选择。
+3. Summon Global Main 是否比 Jump 更自然；v0.5 默认 Summon。
+4. Global Main 被 summon 后，原 workspace 是否真的完全不需要占位/恢复逻辑；v0.5 默认不需要。
+5. Noctalia 的 window/application ranking 是否已经足够，还是需要薄统一 provider。
+6. named workspace 是否需要自动命名。
+7. workspace slot `1..9` 应固定还是允许动态映射。
 
 ## Future / Experimental
 
-9. Semantic Alias 是否会自然保持少量高频对象，还是最终重新形成 mark 式维护负担？
-10. Directional Activation 的箭头是否确实应该表示 target 的最终位置？
-11. Directional Activation 在已有多 pane composition 中应该如何表现？
-12. Directional Activation 的默认比例与 focus 策略是什么？
-13. niri / Hyprland 上最自然的物理 chord 实现分别是什么？
+8. Semantic Alias 是否会自然保持少量高频对象，还是最终重新形成 mark 式维护负担？
+9. Directional Activation 的箭头是否确实应该表示 target 的最终位置？
+10. Directional Activation 在已有多 pane composition 中应该如何表现？
+11. Directional Activation 的默认比例与 focus 策略是什么？
+12. niri / Hyprland 上最自然的物理 chord 实现分别是什么？
 
 ---
 
