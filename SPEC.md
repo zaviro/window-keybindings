@@ -123,7 +123,7 @@ v0.5 的初始实现映射为：
 
 ```text
 browser  → Google Chrome
-terminal → Ghostty
+terminal → Ghostty（仅普通 shell 窗口身份）
 editor   → Zed
 agent    → ChatGPT
 ```
@@ -186,7 +186,73 @@ niri 官方默认的 `Mod+T` 是 `spawn terminal`，不是 focus-or-create。规
 
 ---
 
-## 3.2 Global-main role
+## 3.2 Terminal 与 TUI application 的身份隔离
+
+`terminal` role 表达的是“普通交互 shell 终端”，而不是“任何由终端模拟器承载的窗口”。
+
+因此 v0.5 采用以下规则：
+
+> **普通 Terminal 只匹配默认 Ghostty app_id；以独立 application / role 身份启动的 TUI 必须使用独立 app_id，并从 Terminal role 中天然排除。**
+
+概念示例：
+
+```text
+普通 Ghostty shell
+app_id = com.mitchellh.ghostty
+→ terminal role
+
+Lazygit application surface
+app_id = dev.zaviro.tui.lazygit
+→ lazygit identity
+→ 不属于 terminal role
+
+Yazi application surface
+app_id = dev.zaviro.tui.yazi
+→ yazi identity
+→ 不属于 terminal role
+```
+
+实现上仍然可以全部使用 Ghostty 作为 terminal emulator，例如概念命令：
+
+```text
+ghostty
+
+ghostty --class=dev.zaviro.tui.lazygit -e lazygit
+ghostty --class=dev.zaviro.tui.yazi -e yazi
+```
+
+具体 app_id / class 名称在实现阶段确认，但语义规则固定为“专用 TUI surface 使用专用窗口身份”。
+
+### 身份由启动方式决定，而不是前台进程决定
+
+如果用户从普通 shell 手工运行：
+
+```text
+ghostty
+$ lazygit
+```
+
+该窗口仍然是 Terminal，因为它最初以普通 Terminal 身份创建；helper 不检查当前 foreground process，也不因为临时进入某个 TUI 而改变窗口 role。
+
+如果未来为某个 TUI 增加直接快捷键，例如：
+
+```text
+Mod+G → lazygit
+```
+
+则该快捷键应创建或聚焦具有专用 app_id 的 Lazygit application surface，而不是普通 Ghostty Terminal。
+
+这样可以避免：
+
+- `Mod+T` 错误跳到 Lazygit / Yazi 等 TUI；
+- 为识别 foreground process 引入复杂进程树检测；
+- 为 TUI 另行维护第二套 terminal emulator 配置。
+
+这条规则同样适用于未来任何“以终端承载、但在用户语义上是独立应用”的 TUI。
+
+---
+
+## 3.3 Global-main role
 
 ### v0.5 绑定
 
@@ -250,7 +316,7 @@ v0.5 不做原 workspace 的占位或恢复逻辑。Global Main 本来就没有 
 
 ---
 
-## 3.3 Agent：global-only single-instance role
+## 3.4 Agent：global-only single-instance role
 
 ```text
 A → Agent
@@ -382,10 +448,10 @@ niri 原生方向导航、滚动 strip、窗口重排全部保留。语义搜索
 |---|---|---|
 | `Mod+D` | Noctalia 统一搜索 | window / application；workspace provider 后续接入 |
 | `Mod+B` | local browser | 排除 Global Main；0=create，1=focus，2+=MRU |
-| `Mod+T` | local terminal | 排除 Global Main；0=create，1=focus，2+=MRU |
+| `Mod+T` | local terminal | 仅匹配普通 Ghostty 身份；排除 Global Main 与专用 TUI app_id；0=create，1=focus，2+=MRU |
 | `Mod+E` | local editor / Zed | 排除 Global Main；0=create，1=focus，2+=MRU |
 | `Mod+Alt+B` | global-main browser | summon-or-create |
-| `Mod+Alt+T` | global-main terminal | summon-or-create |
+| `Mod+Alt+T` | global-main terminal | 仅普通 Ghostty 身份；summon-or-create |
 | `Mod+Alt+E` | global-main editor / Zed | summon-or-create |
 | `Mod+Alt+A` | global-main agent / ChatGPT | single-instance summon-or-create |
 | `Mod+A` | Agent local | **不绑定** |
@@ -548,12 +614,14 @@ Local role：
 
 ```text
 query current workspace windows
-→ match role
+→ match role window identity
 → exclude role Global Main
 → 0: spawn
 → 1: focus
 → 2+: choose greatest focus_timestamp / MRU
 ```
+
+Terminal 的 `match role window identity` 必须只接受普通 Ghostty app_id；专用 TUI app_id 不进入 terminal 候选集。
 
 Global Main：
 
@@ -584,7 +652,7 @@ browser:
   spawn = google-chrome
 
 terminal:
-  match = Ghostty app_id
+  match = default Ghostty app_id
   spawn = ghostty
 
 editor:
@@ -597,7 +665,21 @@ agent:
   global_only = true
 ```
 
-实际 `app_id` 与启动命令以本机 niri 查询结果和 NixOS 安装方式为准，在实现阶段确认。
+对于作为独立应用使用的 TUI，采用同一个 Ghostty renderer，但分配专用 app_id：
+
+```text
+lazygit:
+  match = dev.zaviro.tui.lazygit
+  spawn = ghostty --class=dev.zaviro.tui.lazygit -e lazygit
+
+yazi:
+  match = dev.zaviro.tui.yazi
+  spawn = ghostty --class=dev.zaviro.tui.yazi -e yazi
+```
+
+这些 TUI identity 当前不要求已有固定快捷键；它们只是保证未来通过 launcher / alias / role 激活时不会污染 Terminal role。
+
+实际 `app_id`、`--class` 行为与启动命令以本机 niri 查询结果和 NixOS/Ghostty 安装方式为准，在实现阶段确认。
 
 ---
 
@@ -626,17 +708,18 @@ agent:
 2. 多 Local 使用 MRU 是否符合直觉；如果不合适，再实验循环或显式选择。
 3. Summon Global Main 是否比 Jump 更自然；v0.5 默认 Summon。
 4. Global Main 被 summon 后，原 workspace 是否真的完全不需要占位/恢复逻辑；v0.5 默认不需要。
-5. Noctalia 的 window/application ranking 是否已经足够，还是需要薄统一 provider。
-6. named workspace 是否需要自动命名。
-7. workspace slot `1..9` 应固定还是允许动态映射。
+5. 专用 TUI app_id 的使用体验是否足够自然；如果稳定，则未来 TUI direct binding / alias 均沿用该模型。
+6. Noctalia 的 window/application ranking 是否已经足够，还是需要薄统一 provider。
+7. named workspace 是否需要自动命名。
+8. workspace slot `1..9` 应固定还是允许动态映射。
 
 ## Future / Experimental
 
-8. Semantic Alias 是否会自然保持少量高频对象，还是最终重新形成 mark 式维护负担？
-9. Directional Activation 的箭头是否确实应该表示 target 的最终位置？
-10. Directional Activation 在已有多 pane composition 中应该如何表现？
-11. Directional Activation 的默认比例与 focus 策略是什么？
-12. niri / Hyprland 上最自然的物理 chord 实现分别是什么？
+9. Semantic Alias 是否会自然保持少量高频对象，还是最终重新形成 mark 式维护负担？
+10. Directional Activation 的箭头是否确实应该表示 target 的最终位置？
+11. Directional Activation 在已有多 pane composition 中应该如何表现？
+12. Directional Activation 的默认比例与 focus 策略是什么？
+13. niri / Hyprland 上最自然的物理 chord 实现分别是什么？
 
 ---
 
