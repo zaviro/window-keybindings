@@ -1,152 +1,144 @@
 # Window Keybindings
 
-一套面向键盘流桌面的**窗口、工作区与搜索语义寻址规范**，当前针对 niri 提供可运行初版 helper。
+一套面向键盘流桌面的窗口、工作区与搜索语义寻址规范，当前针对 niri 提供薄 helper。
 
-当前规范：**Draft v0.6**。
+当前规范：**Draft v0.7**。
 
 ## 核心模型
 
-只保留三种主要寻址方式：
-
-1. **知道角色** → 直接 role 键，例如 `Mod+B`、`Mod+T`、`Mod+A`。
-2. **知道名字** → `Mod+D` 打开 Noctalia 统一搜索，选择 window / application / workspace。
-3. **只想回到刚才** → `Mod+Tab` 使用 niri 最近窗口历史。
-
-窗口物理位置、创建顺序和 MRU 距离都不是身份；MRU 仅用于多个已匹配候选的消歧。
-
-## v0.6：modifier 只解决真实歧义
-
-`Mod+Role` 优先表达“我要这个东西”。只有同一个 role 同时存在 Local 与 Global 两种 scope 时，才使用 `Alt` 选择 Global Main：
+v0.7 删除 `Global Main` 与 `Mod+Alt+Role`。Role 只保留两类：
 
 ```text
-Dual Scope
-Mod+Role      → Local
-Mod+Alt+Role  → Global Main
+Contextual
+Browser / Terminal / Editor
+→ Mod+Role
+→ 只在当前 workspace 解析
+→ 0=create，1=focus，2+=MRU
 
-Global Singleton
-Mod+Role      → Global Singleton
+Singleton
+Agent / Notes
+→ Mod+Role
+→ 全局解析
+→ 已存在则 summon + focus
+→ 不存在则 create
 ```
 
-因此 Agent / ChatGPT 不再使用 `Mod+Alt+A`，而直接使用 `Mod+A`。Notes / Obsidian 当前也按 global singleton 处理，使用 `Mod+N`。
-
-## v0.6 快捷键语义
+核心快捷键：
 
 | 键 | 语义 |
 |---|---|
-| `Mod+D` | Noctalia 统一搜索入口 |
-| `Mod+B` | 当前 workspace local Browser；0=create，1=focus，2+=MRU |
-| `Mod+T` | 当前 workspace local Terminal；排除 Global Main 与专用 TUI surface |
-| `Mod+E` | 当前 workspace local Editor / Zed |
-| `Mod+Alt+B` | Browser Global Main；summon-or-create |
-| `Mod+Alt+T` | Terminal Global Main；summon-or-create |
-| `Mod+Alt+E` | Editor Global Main；summon-or-create |
-| `Mod+A` | Agent / ChatGPT Global Singleton；summon-or-create |
-| `Mod+N` | Notes / Obsidian Global Singleton；summon-or-create |
-| `Mod+Tab` | 最近窗口 / 回到刚才；保留 niri |
+| `Mod+B` | 当前 workspace Browser |
+| `Mod+T` | 当前 workspace Terminal |
+| `Mod+E` | 当前 workspace Editor |
+| `Mod+A` | 全局 Agent / ChatGPT singleton |
+| `Mod+N` | 全局 Notes / Obsidian singleton |
+| `Mod+D` | Noctalia 统一搜索 |
+| `Mod+Tab` | 最近窗口 / 回到刚才 |
 
-`Mod+Alt+A` 与 `Mod+Alt+N` 不再绑定，因为这两个 role 当前没有 Local/Global scope 歧义。
+不再定义 `Mod+Alt+B/T/E/A/N` 的 role 语义。
 
-Global Main 与 Global Singleton 都采用 **Summon**：把对象拉到当前 workspace，而不是把用户跳到对象所在 workspace。
+## 为什么删除 Global Main
 
-> 注意：当前 nix-config 中 `Mod+N` 曾用于 Noctalia Control Center。正式接入 v0.6 时需要迁移该旧绑定；规范优先保留 `N = Notes` 的高频直接入口。
+`Browser Global Main`、`Terminal Global Main`、`Editor Global Main` 并没有稳定、天然的用户语义。多实例工具通常与 workspace/project 上下文绑定，只需要 contextual role；单实例或用户只需要一个实例的工具直接使用 singleton 即可。
 
-## Role scope policy
+真正需要跨 workspace 保持某个具体对象时，应把它建模为 **Semantic Alias / scratchpad**，例如 production SSH、logs、dashboard，而不是人为给整个 application role 指定一个 Main。
 
-```text
-browser  → dual-scope
-terminal → dual-scope
-editor   → dual-scope
-agent    → global-singleton
-notes    → global-singleton
-```
+这一变化同时删除了 Global Main identity、runtime window-id registration 与等待 niri labels 才能完成 Browser Main 的必要性。niri 原生 labels 未来仍可用于 alias/scratchpad 等高级对象，但不再是核心 role 模型的 blocker。
 
-`global-singleton` 是用户语义策略，不要求底层应用技术上永远只能创建一个窗口。若偶尔出现多个匹配窗口，helper 默认取全局 MRU；如果未来真实使用需要多 scope，再把该 role 升级为 dual-scope。
+## Helper
 
-## Identity / 状态优先级
-
-实现必须按以下优先级选择窗口身份来源：
-
-1. **窗口自身 `app_id` 能表达 → 绝不用外部状态。**
-2. **单实例应用**（例如 ChatGPT）→ 直接使用天然唯一的 `app_id`。
-3. **只有无法给不同实例赋不同 identity 的 GUI 应用** → 才允许临时使用 runtime state。
-4. **niri 提供正式原生 window labels/tags/metadata 后** → 将剩余 fallback 迁移到 niri-native identity，并删除对应外部状态。
-
-因此 runtime JSON 是兼容后端，不是默认架构。
-
-例如 Terminal 可以直接区分：
+正式接口：
 
 ```text
-com.mitchellh.ghostty
-→ Local Terminal
-
-dev.zaviro.role.terminal-main
-→ Terminal Global Main
-
-dev.zaviro.tui.yazi
-→ Yazi application surface
-```
-
-这三者都由窗口自身 identity 区分，不需要记录 window id。
-
-## 初版 helper
-
-[`bin/window-keybindings`](./bin/window-keybindings) 正式提供：
-
-```text
-window-keybindings local ROLE APP_ID_REGEX -- COMMAND [ARG...]
-window-keybindings global ROLE APP_ID_REGEX -- COMMAND [ARG...]
-window-keybindings global-state ROLE APP_ID_REGEX -- COMMAND [ARG...]
-window-keybindings singleton ROLE APP_ID_REGEX -- COMMAND [ARG...]
-```
-
-- `local`：Dual-Scope Local；当前 workspace 匹配，多个候选按 niri `focus_timestamp` 取 MRU，没有则 spawn。
-- `global`：Dual-Scope Global Main 的首选后端；`APP_ID_REGEX` 描述 Global Main 自身专用 app_id；已有则 summon + focus，没有则 spawn；**不读写 Global Main JSON**。
-- `global-state`：仅用于无法为 Global Main 暴露独立 identity 的应用；通过 session-local window id 登记。
-- `singleton`：Global Singleton；全局查找，已有则 summon，没有则 spawn；多个候选取全局 MRU；不保存额外身份状态。
-
-旧命令名 `single` 保留为兼容 alias，新配置统一使用 `singleton`。
-
-只有 `global-state` fallback 会使用：
-
-```text
-$XDG_RUNTIME_DIR/window-keybindings/global-main.json
-```
-
-该文件只在当前登录会话有效。`flock` 只用于串行化快捷键动作，防止快速连按重复创建，不承担窗口 identity。
-
-### 调试
-
-```bash
+window-keybindings contextual ROLE APP_ID_REGEX -- COMMAND [ARG...]
+window-keybindings singleton  ROLE APP_ID_REGEX -- COMMAND [ARG...]
 window-keybindings inspect
-window-keybindings state
-window-keybindings forget terminal
-window-keybindings reset
 ```
 
-`state` 只显示 runtime fallback registrations；如果所有 role 都能由 app_id / singleton identity 表达，它应保持 `{}`。
+兼容 alias：
+
+```text
+local  → contextual
+single → singleton
+```
+
+v0.7 删除：
+
+```text
+global
+global-state
+state
+forget
+reset
+```
+
+因此 helper 不再维护任何窗口 identity 状态。仍使用 `flock` 串行化快捷键动作，避免快速连按造成重复创建；锁不是窗口状态。
+
+### Contextual
+
+只在当前 focused workspace 中匹配 `APP_ID_REGEX`：
+
+```text
+0 → spawn
+1 → focus
+2+ → focus MRU
+```
+
+Browser / Terminal / Editor 使用这一策略。
+
+### Singleton
+
+全局匹配 `APP_ID_REGEX`：
+
+```text
+0 → spawn
+1 → summon + focus
+2+ → global MRU → summon + focus
+```
+
+ChatGPT 属于天然 singleton。Obsidian 当前属于 policy singleton：即使技术上偶尔能出现多个窗口，role 仍只解析成一个全局目标，多候选时用 MRU 消歧。
+
+## Browser / 进程边界
+
+窗口 identity 不依赖启动命令 PID。Chrome 等应用可能让新的命令行进程把“新建窗口”请求交给已有 browser process，因此 helper 的 spawn correlation 使用：
+
+```text
+before = 当前 niri window IDs
+spawn command
+wait until:
+  出现新的 matching app_id
+  且 window ID 不在 before
+```
+
+所以同一 browser process 下的多个 Chrome 窗口仍然可以作为独立 contextual windows 使用。
 
 ## Terminal 与 TUI
 
-普通 Terminal 只应匹配默认 Ghostty Wayland app_id：
+普通 Terminal 只匹配默认 Ghostty Wayland app_id：
 
 ```text
 ^com[.]mitchellh[.]ghostty$
 ```
 
-独立 TUI 使用同一个 Ghostty，但设置专用 `class/app_id`：
+独立 TUI 使用同一个 Ghostty renderer，但设置专用 app_id：
 
 ```bash
 ghostty --class=dev.zaviro.tui.lazygit -e lazygit
 ghostty --class=dev.zaviro.tui.yazi -e yazi
 ```
 
-Global Main Terminal 同理：
+如果在普通 shell 中手动运行 `lazygit` / `yazi`，窗口仍然是 Terminal；role 由窗口创建 identity 决定，不检查 foreground process。
 
-```bash
-ghostty --class=dev.zaviro.role.terminal-main
-```
+## 搜索与 Workspace
 
-因此 TUI 和 Terminal Global Main 天然不会参与 `Mod+T` 的 Local Terminal 查找。若在普通 shell 中手动运行 `lazygit` / `yazi`，窗口仍保持 Terminal 身份；helper 不检查 foreground process。
+`Mod+D` 保持唯一主搜索入口，优先复用 Noctalia windows/application providers。长期 workspace 应有语义名称；`Mod+1..9` 只是快捷槽位，不是 workspace identity。
+
+## Future / Experimental
+
+- **Semantic Alias / scratchpad**：用于真正需要跨 workspace 保持具体 identity 的对象，例如 production SSH、logs、dashboard。
+- **niri native labels/tags**：未来可作为 alias/scratchpad identity backend，但不是 v0.7 role 的依赖。
+- **Directional Activation**：未来实验“保留当前窗口 + 激活目标 + 排列”。
+- workspace 自动命名与更复杂多显示器 policy。
 
 ## Nix
 
@@ -160,28 +152,19 @@ nix run github:zaviro/window-keybindings -- inspect
 
 ## 测试
 
-[`tests/test.sh`](./tests/test.sh) 使用 mock niri IPC 覆盖：
+`tests/test.sh` 使用 mock niri IPC 覆盖：
 
-- Local 按 app_id 匹配与 MRU；
-- TUI app_id 不污染 Terminal；
-- app_id-backed Global Main summon 且不产生状态登记；
-- Global Singleton summon 且不产生状态登记；
-- local/global 缺失时 spawn；
-- `global-state` 仅作为显式 fallback；
-- fallback Global Main 会从同 app_id 的 Local 查找中排除。
-
-## Workspace 与搜索
-
-长期 workspace 应有名字；`1..9` 只是快速槽位，不是身份。Noctalia 负责 UI，helper 只负责直接 role 行为，不另造 launcher。
-
-## Future / Experimental
-
-仍不阻塞初版实现的扩展包括：Semantic Alias、Directional Activation、workspace 自动命名与更复杂的多显示器 policy。
-
-niri 原生 window labels/tags/metadata 一旦正式可用，应优先替换剩余 runtime-state fallback，而不是与 JSON 长期并存。
+- contextual 当前 workspace MRU；
+- contextual 缺失时创建新窗口；
+- TUI app_id 不污染普通 Terminal；
+- singleton 跨 workspace summon；
+- policy singleton 多窗口时使用全局 MRU；
+- singleton 缺失时创建；
+- `local` / `single` compatibility aliases；
+- helper 不再创建 Global Main runtime state。
 
 ## 文档
 
-- [`SPEC.md`](./SPEC.md)：完整 v0.6 规范与设计理由。
-- [`REFERENCES.md`](./REFERENCES.md)：niri、Noctalia 等参考依据。
-- [`index.html`](./index.html)：早期交互式草案入口；内容可能落后于 `SPEC.md`。
+- `SPEC.md`：完整 v0.7 规范与设计理由。
+- `REFERENCES.md`：niri、Noctalia 等参考依据。
+- `index.html`：早期交互式草案，内容可能落后于 `SPEC.md`。

@@ -20,9 +20,8 @@ cat >"$TMP/state/windows.json" <<'JSON'
   {"id":3,"app_id":"com.mitchellh.ghostty","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":30,"nanos":0}},
   {"id":4,"app_id":"dev.zaviro.tui.yazi","workspace_id":101,"is_focused":false,"focus_timestamp":{"secs":40,"nanos":0}},
   {"id":5,"app_id":"com.openai.chatgpt","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":50,"nanos":0}},
-  {"id":6,"app_id":"dev.zaviro.role.terminal-main","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":60,"nanos":0}},
-  {"id":7,"app_id":"mock.obsidian","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":61,"nanos":0}},
-  {"id":8,"app_id":"mock.obsidian","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":70,"nanos":0}}
+  {"id":6,"app_id":"mock.obsidian","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":61,"nanos":0}},
+  {"id":7,"app_id":"mock.obsidian","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":70,"nanos":0}}
 ]
 JSON
 
@@ -81,53 +80,50 @@ export XDG_RUNTIME_DIR="$TMP/runtime"
 
 WKB="$ROOT/bin/window-keybindings"
 
-# Local Terminal matches only the default Ghostty identity. The dedicated
-# Global Main app_id and TUI app_id are naturally excluded; id=2 wins by MRU.
+# Contextual Terminal only sees the current workspace and exact Ghostty app_id.
+# id=2 is the MRU current-workspace Terminal; id=3 is elsewhere and id=4 is TUI.
+"$WKB" contextual terminal '^com[.]mitchellh[.]ghostty$' -- mock-spawn com.mitchellh.ghostty
+tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:2'
+
+# Compatibility alias keeps the same contextual semantics.
 "$WKB" local terminal '^com[.]mitchellh[.]ghostty$' -- mock-spawn com.mitchellh.ghostty
 tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:2'
 
-# Preferred Global Main backend is the window's own app_id. It is summoned
-# without creating any runtime identity registration.
-"$WKB" global terminal '^dev[.]zaviro[.]role[.]terminal-main$' -- mock-spawn dev.zaviro.role.terminal-main
-grep -qx 'move:6:main:101' "$TMP/state/actions.log"
-tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:6'
-"$WKB" state | jq -e 'length == 0' >/dev/null
-
-# Natural singleton ChatGPT is summoned globally and keeps runtime state empty.
+# Natural singleton ChatGPT is summoned from dev to the current workspace.
 "$WKB" singleton agent '^com[.]openai[.]chatgpt$' -- mock-spawn com.openai.chatgpt
 grep -qx 'move:5:main:101' "$TMP/state/actions.log"
 tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:5'
-"$WKB" state | jq -e 'length == 0' >/dev/null
 
-# A policy singleton may technically have multiple windows. Global MRU is the
-# explicit tie-breaker; id=8 wins over id=7 and is summoned.
+# Policy singleton may technically have multiple windows; global MRU wins.
 "$WKB" singleton notes '^mock[.]obsidian$' -- mock-spawn mock.obsidian
-grep -qx 'move:8:main:101' "$TMP/state/actions.log"
-tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:8'
-"$WKB" state | jq -e 'length == 0' >/dev/null
+grep -qx 'move:7:main:101' "$TMP/state/actions.log"
+tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:7'
 
-# The old command name remains a compatibility alias.
+# Compatibility alias keeps singleton semantics.
 "$WKB" single agent '^com[.]openai[.]chatgpt$' -- mock-spawn com.openai.chatgpt
 tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:5'
 
-# Missing local role spawns a new matching window.
-"$WKB" local browser '^google-chrome$' -- mock-spawn google-chrome
+# Missing contextual Browser creates a new matching compositor window.
+"$WKB" contextual browser '^google-chrome$' -- mock-spawn google-chrome
+tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:8'
+
+# Missing contextual Editor likewise creates a current-workspace window.
+"$WKB" contextual editor '^dev[.]zed[.]Zed$' -- mock-spawn dev.zed.Zed
 tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:9'
 
-# Missing app_id-backed Global Main spawns its dedicated native identity and
-# still leaves runtime state empty.
-"$WKB" global editor '^dev[.]zaviro[.]role[.]editor-main$' -- mock-spawn dev.zaviro.role.editor-main
+# Missing singleton creates one and focuses it.
+"$WKB" singleton music '^mock[.]music$' -- mock-spawn mock.music
 tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:10'
-"$WKB" state | jq -e 'length == 0' >/dev/null
 
-# Runtime state exists only as an explicit compatibility fallback.
-"$WKB" global-state legacy-editor '^dev[.]zed[.]Zed$' -- mock-spawn dev.zed.Zed
-"$WKB" state | jq -e '."legacy-editor" == 11 and length == 1' >/dev/null
-tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:11'
-
-# A local role sharing the same app_id excludes its state-backed fallback
-# Global Main, so it creates a separate local instance instead of focusing id=11.
-"$WKB" local legacy-editor '^dev[.]zed[.]Zed$' -- mock-spawn dev.zed.Zed
-tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:12'
+# v0.7 no longer creates or exposes Global Main runtime identity state.
+[[ ! -e "$XDG_RUNTIME_DIR/window-keybindings/global-main.json" ]]
+if "$WKB" global terminal '^anything$' -- mock-spawn anything >/dev/null 2>&1; then
+  echo 'deprecated global command unexpectedly succeeded' >&2
+  exit 1
+fi
+if "$WKB" global-state terminal '^anything$' -- mock-spawn anything >/dev/null 2>&1; then
+  echo 'deprecated global-state command unexpectedly succeeded' >&2
+  exit 1
+fi
 
 printf 'ok\n'
