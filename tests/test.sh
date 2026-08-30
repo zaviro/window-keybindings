@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-mkdir -p "$TMP/bin" "$TMP/state" "$TMP/runtime/window-keybindings"
+mkdir -p "$TMP/bin" "$TMP/state" "$TMP/runtime"
 
 cat >"$TMP/state/workspaces.json" <<'JSON'
 [
@@ -19,7 +19,8 @@ cat >"$TMP/state/windows.json" <<'JSON'
   {"id":2,"app_id":"com.mitchellh.ghostty","workspace_id":101,"is_focused":false,"focus_timestamp":{"secs":20,"nanos":0}},
   {"id":3,"app_id":"com.mitchellh.ghostty","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":30,"nanos":0}},
   {"id":4,"app_id":"dev.zaviro.tui.yazi","workspace_id":101,"is_focused":false,"focus_timestamp":{"secs":40,"nanos":0}},
-  {"id":5,"app_id":"com.openai.chatgpt","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":50,"nanos":0}}
+  {"id":5,"app_id":"com.openai.chatgpt","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":50,"nanos":0}},
+  {"id":6,"app_id":"dev.zaviro.role.terminal-main","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":60,"nanos":0}}
 ]
 JSON
 
@@ -74,31 +75,46 @@ chmod +x "$TMP/bin/mock-spawn"
 export PATH="$TMP/bin:$PATH"
 export WKB_MOCK_DIR="$TMP/state"
 export XDG_RUNTIME_DIR="$TMP/runtime"
-printf '{"terminal":2}\n' >"$XDG_RUNTIME_DIR/window-keybindings/global-main.json"
 : >"$TMP/state/actions.log"
 
 WKB="$ROOT/bin/window-keybindings"
 
-# Local terminal excludes Global Main id=2 and the TUI app_id, so id=1 wins.
+# Local Terminal matches only the default Ghostty identity. The dedicated
+# Global Main app_id and TUI app_id are naturally excluded; id=2 wins by MRU.
 "$WKB" local terminal '^com[.]mitchellh[.]ghostty$' -- mock-spawn com.mitchellh.ghostty
-tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:1'
-
-# Registered Global Main focuses directly when already on the current workspace.
-"$WKB" global terminal '^com[.]mitchellh[.]ghostty$' -- mock-spawn com.mitchellh.ghostty
 tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:2'
 
-# Global-only ChatGPT is summoned from dev to main.
-"$WKB" single agent 'chatgpt' -- mock-spawn com.openai.chatgpt
+# Preferred Global Main backend is the window's own app_id. It is summoned
+# without creating any runtime identity registration.
+"$WKB" global terminal '^dev[.]zaviro[.]role[.]terminal-main$' -- mock-spawn dev.zaviro.role.terminal-main
+grep -qx 'move:6:main:101' "$TMP/state/actions.log"
+tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:6'
+"$WKB" state | jq -e 'length == 0' >/dev/null
+
+# Single-instance ChatGPT uses its naturally unique app_id and no state.
+"$WKB" single agent '^com[.]openai[.]chatgpt$' -- mock-spawn com.openai.chatgpt
 grep -qx 'move:5:main:101' "$TMP/state/actions.log"
 tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:5'
+"$WKB" state | jq -e 'length == 0' >/dev/null
 
 # Missing local role spawns a new matching window.
-"$WKB" local browser 'google-chrome' -- mock-spawn google-chrome
-tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:6'
-
-# Missing Global Main spawns, registers and focuses a new window.
-"$WKB" global editor 'zed' -- mock-spawn dev.zed.Zed
-jq -e '.editor == 7 and .terminal == 2' "$XDG_RUNTIME_DIR/window-keybindings/global-main.json" >/dev/null
+"$WKB" local browser '^google-chrome$' -- mock-spawn google-chrome
 tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:7'
+
+# Missing app_id-backed Global Main spawns its dedicated native identity and
+# still leaves runtime state empty.
+"$WKB" global editor '^dev[.]zaviro[.]role[.]editor-main$' -- mock-spawn dev.zaviro.role.editor-main
+tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:8'
+"$WKB" state | jq -e 'length == 0' >/dev/null
+
+# Runtime state exists only as an explicit compatibility fallback.
+"$WKB" global-state legacy-editor '^dev[.]zed[.]Zed$' -- mock-spawn dev.zed.Zed
+"$WKB" state | jq -e '."legacy-editor" == 9 and length == 1' >/dev/null
+tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:9'
+
+# A local role sharing the same app_id excludes its state-backed fallback
+# Global Main, so it creates a separate local instance instead of focusing id=9.
+"$WKB" local legacy-editor '^dev[.]zed[.]Zed$' -- mock-spawn dev.zed.Zed
+tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:10'
 
 printf 'ok\n'
