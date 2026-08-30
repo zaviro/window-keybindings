@@ -1,99 +1,117 @@
 # Window Keybindings
 
-一套面向键盘流桌面的**窗口、工作区与搜索寻址规范草案**。
+一套面向键盘流桌面的**窗口、工作区与搜索语义寻址规范**，当前针对 niri 提供可运行初版 helper。
 
-当前阶段只定义用户语义与暂定键位，不实现 compositor 配置。目标不是替代 niri / Hyprland 的窗口管理能力，而是在其上增加一层更低记忆负担的**语义寻址**。
+当前规范：**Draft v0.5**。
 
-## 当前核心模型
+## 核心模型
 
 只保留三种主要寻址方式：
 
-1. **知道角色** → 直接 role 键，例如 `Mod+B`、`Mod+T`。
-2. **知道名字** → `Mod+D` 打开统一搜索，输入 2–3 个字符选择 window / application / workspace。
-3. **只想回到刚才** → `Mod+Tab` 使用最近窗口历史。
+1. **知道角色** → 直接 role 键，例如 `Mod+B`、`Mod+T`、`Mod+E`。
+2. **知道名字** → `Mod+D` 打开 Noctalia 统一搜索，选择 window / application / workspace。
+3. **只想回到刚才** → `Mod+Tab` 使用 niri 最近窗口历史。
 
-窗口的物理位置、创建顺序和 MRU 距离都不是身份。
+窗口物理位置、创建顺序和 MRU 距离都不是身份；MRU 仅用于多个已匹配 Local Instance 的消歧。
 
-## 当前暂定键位
+## v0.5 快捷键语义
 
-| 键 | 语义 | 状态 |
-|---|---|---|
-| `Mod+D` | Noctalia 统一搜索入口；窗口可跳转，应用可启动，后续加入 workspace | 暂定 |
-| `Mod+B` | 当前 workspace 的 browser；已有则跳转，没有则创建 | 暂定 |
-| `Mod+T` | 当前 workspace 的 terminal；已有则跳转，没有则创建 | 暂定；沿用 niri 的 T=Terminal |
-| `Mod+Alt+B` | global-main browser；拉到当前 workspace，没有则创建 | 暂定 |
-| `Mod+Alt+T` | global-main terminal；拉到当前 workspace，没有则创建 | 暂定 |
-| `Mod+E` | Editor role 槽位 | **保留但暂不绑定** |
-| `Mod+A` | AI / assistant role 槽位 | **保留但暂不绑定** |
-| `Mod+Tab` | 最近窗口 / 回到刚才 | 保留 niri 原生语义 |
+| 键 | 语义 |
+|---|---|
+| `Mod+D` | Noctalia 统一搜索入口 |
+| `Mod+B` | 当前 workspace local Browser；0=create，1=focus，2+=MRU |
+| `Mod+T` | 当前 workspace local Terminal；排除 Global Main 与专用 TUI surface |
+| `Mod+E` | 当前 workspace local Editor / Zed |
+| `Mod+Alt+B` | global-main Browser；summon-or-create |
+| `Mod+Alt+T` | global-main Terminal；summon-or-create |
+| `Mod+Alt+E` | global-main Editor；summon-or-create |
+| `Mod+Alt+A` | global-only Agent / ChatGPT；single-instance summon-or-create |
+| `Mod+A` | 不绑定 |
+| `Mod+Tab` | 最近窗口 / 回到刚才；保留 niri |
 
-`Mod+Space` 不再作为本规范入口；`Mod+Shift+角色键 = compose` 的方案已删除。
+Global Main 按 role 全局最多一个，语义上不属于任何 workspace。激活时采用 **Summon**：把对象拉到当前 workspace，而不是把用户跳到对象所在 workspace。
 
-## 未来扩展（不进入当前核心键位）
+## 初版实现
 
-### Semantic Alias
-
-允许用户把任意稳定、高频目标注册为直接语义别名，并分配 `Mod+字母` 一类 O(1) 快捷入口。例如未来可以有：
-
-```text
-Mod+M → music
-Mod+C → ChatGPT
-Mod+G → 某个固定 GitHub / browser profile
-```
-
-Alias 与 role 共用同一种用户语义：**已有则跳转，没有则创建**。`browser`、`terminal` 可以视为系统预设 role；Alias 则由用户按实际高频对象自行增加。
-
-### Directional Activation
-
-未来可能支持把“激活目标”和“组成当前屏幕布局”合成一次操作：
+[`bin/window-keybindings`](./bin/window-keybindings) 实现三种动作：
 
 ```text
-Mod + ← + B
+window-keybindings local ROLE APP_ID_REGEX -- COMMAND [ARG...]
+window-keybindings global ROLE APP_ID_REGEX -- COMMAND [ARG...]
+window-keybindings single ROLE APP_ID_REGEX -- COMMAND [ARG...]
 ```
 
-当前首选语义：**保留当前窗口，激活/拉取 Browser，并把 Browser 放在当前窗口左侧。**
+- `local`：当前 workspace 匹配 role，排除其 Global Main；多个候选按 niri `focus_timestamp` 取 MRU；没有则 spawn。
+- `global`：运行时登记一个 Global Main；已存在则 summon + focus，不存在则新建、登记、focus。
+- `single`：用于 ChatGPT 一类 global-only 单实例应用；找到任意匹配窗口即 summon，没有才 spawn，不保存额外身份状态。
 
-也就是说，方向箭头暂定描述**目标窗口的最终位置**：
+Global Main 状态仅保存在：
 
 ```text
-← Browser → [ Browser ][ Current ]
-→ Browser → [ Current ][ Browser ]
-↑ Terminal → Terminal 在 Current 上方
-↓ Terminal → Terminal 在 Current 下方
+$XDG_RUNTIME_DIR/window-keybindings/global-main.json
 ```
 
-这只是 Future / Experimental 规则，尚未决定真实物理按键如何实现，也尚未决定已有多窗布局、默认比例和焦点等边界行为。
+不会写入长期持久状态。`flock` 防止连续快速按键造成重复创建。
 
-## 原生窗口管理能力
+### 调试
 
-niri 已经成熟且好用的窗口管理键原则上全部保留，包括：
+```bash
+window-keybindings inspect
+window-keybindings state
+window-keybindings forget terminal
+window-keybindings reset
+```
 
-- `Mod+O / Q / F / R / V / Shift+F / Tab`；
-- 方向焦点；
-- 窗口/列移动；
-- workspace 切换与重排；
-- consume / expel；
-- resize / preset width；
-- floating、maximize、fullscreen 等。
+`inspect` 直接输出 niri 当前 windows/workspaces，可用于确认真实 `app_id`。
 
-这些是**空间操作与回退层**，不需要因为语义寻址而删除。
+## Terminal 与 TUI
 
-## Workspace
-
-长期 workspace 应有名字；`1..9` 只是快速槽位，不是身份。例如：
+普通 Terminal 只应匹配默认 Ghostty Wayland app_id：
 
 ```text
-1 → main
-2 → window-keybindings
-3 → learning
+^com[.]mitchellh[.]ghostty$
 ```
 
-忘记数字时仍应能通过名称搜索进入。
+独立 TUI 使用同一个 Ghostty，但启动时设置专用 `class/app_id`：
+
+```bash
+ghostty --class=dev.zaviro.tui.lazygit -e lazygit
+ghostty --class=dev.zaviro.tui.yazi -e yazi
+```
+
+因此这些 TUI 天然不会参与 `Mod+T` 的 Terminal role 查找。若在普通 shell 中手动运行 `lazygit` / `yazi`，窗口仍保持 Terminal 身份；helper 不检查 foreground process。
+
+## Nix
+
+仓库提供 `flake.nix`：
+
+```bash
+nix run github:zaviro/window-keybindings -- inspect
+```
+
+运行时依赖由 flake 提供：`niri`、`jq`、`flock`。
+
+## 测试
+
+[`tests/test.sh`](./tests/test.sh) 使用 mock niri IPC 覆盖：
+
+- Local 排除 Global Main；
+- TUI app_id 不污染 Terminal；
+- Global Main focus / summon；
+- global-only single-instance summon；
+- local/global 缺失时 spawn；
+- Global Main 运行时登记。
+
+## Workspace 与搜索
+
+长期 workspace 应有名字；`1..9` 只是快速槽位，不是身份。Noctalia 负责 UI，helper 只负责直接 role 行为，不另造 launcher。
+
+## Future / Experimental
+
+仍不阻塞初版实现的扩展包括：Semantic Alias、Directional Activation、workspace 自动命名与更复杂的多显示器 policy。
 
 ## 文档
 
-- [`index.html`](./index.html)：面向人的交互式草案入口。
-- [`SPEC.md`](./SPEC.md)：完整规范与设计理由。
-- [`REFERENCES.md`](./REFERENCES.md)：niri、Hyprland、Noctalia 的参考依据。
-
-当前状态：**Draft v0.3**。
+- [`SPEC.md`](./SPEC.md)：完整 v0.5 规范与设计理由。
+- [`REFERENCES.md`](./REFERENCES.md)：niri、Noctalia 等参考依据。
+- [`index.html`](./index.html)：早期交互式草案入口；内容可能落后于 `SPEC.md`。
