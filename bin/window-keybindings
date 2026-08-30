@@ -14,25 +14,44 @@ usage() {
 Usage:
   window-keybindings local ROLE APP_ID_REGEX -- COMMAND [ARG...]
   window-keybindings global ROLE APP_ID_REGEX -- COMMAND [ARG...]
+  window-keybindings global-state ROLE APP_ID_REGEX -- COMMAND [ARG...]
   window-keybindings single ROLE APP_ID_REGEX -- COMMAND [ARG...]
   window-keybindings inspect
   window-keybindings state
   window-keybindings forget ROLE
   window-keybindings reset
 
+Identity priority:
+  1. Prefer a distinct window app_id whenever the application can expose one.
+  2. Single-instance applications use their naturally unique app_id.
+  3. Use runtime state only when different instances cannot expose different
+     identities. This fallback is explicit via `global-state`.
+  4. When niri ships native window labels/tags, migrate remaining runtime-state
+     roles to niri-native metadata and remove the fallback where possible.
+
 Commands:
-  local   Focus the MRU matching window on the current workspace, excluding the
-          role's registered Global Main. Spawn a new local instance if absent.
-  global  Focus/summon the role's registered Global Main. If absent, spawn a
-          new matching window and register it as the Global Main.
-  single  For global-only single-instance apps: focus/summon any matching
-          window, otherwise spawn one. No Global Main state is stored.
-  inspect Print current niri windows/workspaces for matcher debugging.
-  state   Print current Global Main runtime state.
-  forget  Forget one role's Global Main registration.
-  reset   Clear all Global Main registrations for this login session.
+  local        Focus the MRU matching window on the current workspace. A
+               runtime-state-backed Global Main for the same role is excluded;
+               app_id-backed Global Mains are excluded naturally by using a
+               distinct APP_ID_REGEX. Spawn a new local instance if absent.
+  global       Preferred Global Main backend. APP_ID_REGEX identifies the
+               Global Main directly from the niri window itself. Focus/summon
+               an existing matching window, otherwise spawn one. No identity
+               state is stored outside niri's window list.
+  global-state Compatibility fallback for applications that cannot give the
+               Global Main a distinct app_id. The matching window id is kept in
+               $XDG_RUNTIME_DIR/window-keybindings/global-main.json for this
+               login session only.
+  single       For global-only single-instance applications: focus/summon the
+               naturally unique matching window, otherwise spawn it. No Global
+               Main state is stored.
+  inspect      Print current niri windows/workspaces for matcher debugging.
+  state        Print runtime fallback registrations only.
+  forget       Forget one role's runtime fallback registration.
+  reset        Clear all runtime fallback registrations for this login session.
 
 APP_ID_REGEX is matched case-insensitively against niri's Wayland app_id.
+Use narrow/exact expressions for semantic identities whenever possible.
 USAGE
 }
 
@@ -45,14 +64,27 @@ need() {
   command -v "$1" >/dev/null 2>&1 || fail "required command not found: $1"
 }
 
-init_state() {
+init_runtime() {
   mkdir -p "$STATE_DIR"
+}
+
+ensure_state_file() {
+  init_runtime
   if [[ ! -s "$STATE_FILE" ]]; then
     printf '{}\n' >"$STATE_FILE"
   fi
 }
 
-lock_state() {
+state_json() {
+  if [[ -s "$STATE_FILE" ]]; then
+    cat "$STATE_FILE"
+  else
+    printf '{}\n'
+  fi
+}
+
+lock_runtime() {
+  init_runtime
   exec 9>"$LOCK_FILE"
   flock 9
 }
@@ -82,13 +114,14 @@ matches_app_id() {
 
 registered_global_id() {
   local role=$1
-  jq -r --arg role "$role" '.[$role] // empty' "$STATE_FILE"
+  state_json | jq -r --arg role "$role" '.[$role] // empty'
 }
 
 set_global_id() {
   local role=$1
   local id=$2
   local tmp
+  ensure_state_file
   tmp=$(mktemp "$STATE_DIR/state.XXXXXX")
   jq --arg role "$role" --argjson id "$id" '.[$role] = $id' "$STATE_FILE" >"$tmp"
   mv "$tmp" "$STATE_FILE"
@@ -97,6 +130,7 @@ set_global_id() {
 clear_global_id() {
   local role=$1
   local tmp
+  [[ -s "$STATE_FILE" ]] || return 0
   tmp=$(mktemp "$STATE_DIR/state.XXXXXX")
   jq --arg role "$role" 'del(.[$role])' "$STATE_FILE" >"$tmp"
   mv "$tmp" "$STATE_FILE"
@@ -215,13 +249,16 @@ run_local() {
   [[ ${1:-} == "--" ]] && shift
   (($# > 0)) || fail "local requires a spawn command"
 
-  local ws ws_id global_id='' window id
+  local ws ws_id fallback_global_id='' window id
   ws=$(focused_workspace)
   [[ -n "$ws" ]] || fail "niri has no focused workspace"
   ws_id=$(jq -r '.id' <<<"$ws")
 
-  global_id=$(validated_global_id "$role" "$app_re" || true)
-  window=$(mru_matching_window "$app_re" "$ws_id" "$global_id")
+  # Only the compatibility backend needs an explicit exclusion. A native
+  # app_id-backed Global Main has a distinct identity and therefore does not
+  # match this local role's APP_ID_REGEX in the first place.
+  fallback_global_id=$(validated_global_id "$role" "$app_re" || true)
+  window=$(mru_matching_window "$app_re" "$ws_id" "$fallback_global_id")
   if [[ -n "$window" ]]; then
     focus_window "$(jq -r '.id' <<<"$window")"
     return
@@ -240,6 +277,32 @@ run_global() {
   shift 2
   [[ ${1:-} == "--" ]] && shift
   (($# > 0)) || fail "global requires a spawn command"
+
+  local ws window id
+  ws=$(focused_workspace)
+  [[ -n "$ws" ]] || fail "niri has no focused workspace"
+
+  # Preferred backend: the window identifies itself through a distinct app_id.
+  # No external identity state is read or written here.
+  window=$(mru_matching_window "$app_re")
+  if [[ -n "$window" ]]; then
+    move_and_focus_to_workspace "$(jq -r '.id' <<<"$window")" "$ws"
+    return
+  fi
+
+  if id=$(spawn_and_wait_for_window "$app_re" -- "$@"); then
+    move_and_focus_to_workspace "$id" "$ws"
+  else
+    fail "spawned $role Global Main but did not observe a matching native identity"
+  fi
+}
+
+run_global_state() {
+  local role=$1
+  local app_re=$2
+  shift 2
+  [[ ${1:-} == "--" ]] && shift
+  (($# > 0)) || fail "global-state requires a spawn command"
 
   local ws id
   ws=$(focused_workspace)
@@ -305,14 +368,19 @@ main() {
   need jq
   need niri
   need flock
-  init_state
 
   case "$command" in
     local|global|single)
       (($# >= 4)) || { usage >&2; exit 2; }
       shift
-      lock_state
+      lock_runtime
       "run_${command}" "$@"
+      ;;
+    global-state)
+      (($# >= 4)) || { usage >&2; exit 2; }
+      shift
+      lock_runtime
+      run_global_state "$@"
       ;;
     inspect)
       (($# == 1)) || { usage >&2; exit 2; }
@@ -320,16 +388,17 @@ main() {
       ;;
     state)
       (($# == 1)) || { usage >&2; exit 2; }
-      cat "$STATE_FILE"
+      state_json
       ;;
     forget)
       (($# == 2)) || { usage >&2; exit 2; }
-      lock_state
+      lock_runtime
       clear_global_id "$2"
       ;;
     reset)
       (($# == 1)) || { usage >&2; exit 2; }
-      lock_state
+      lock_runtime
+      ensure_state_file
       printf '{}\n' >"$STATE_FILE"
       ;;
     *)
