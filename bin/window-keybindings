@@ -15,11 +15,21 @@ Usage:
   window-keybindings local ROLE APP_ID_REGEX -- COMMAND [ARG...]
   window-keybindings global ROLE APP_ID_REGEX -- COMMAND [ARG...]
   window-keybindings global-state ROLE APP_ID_REGEX -- COMMAND [ARG...]
-  window-keybindings single ROLE APP_ID_REGEX -- COMMAND [ARG...]
+  window-keybindings singleton ROLE APP_ID_REGEX -- COMMAND [ARG...]
   window-keybindings inspect
   window-keybindings state
   window-keybindings forget ROLE
   window-keybindings reset
+
+Scope policy:
+  dual-scope role:
+    Mod+Role      -> local
+    Mod+Alt+Role  -> global / global-state
+  global-singleton role:
+    Mod+Role      -> singleton
+
+  The extra modifier is only for choosing Global Main when the same role also
+  has a Local scope. A singleton role does not need an Alt variant.
 
 Identity priority:
   1. Prefer a distinct window app_id whenever the application can expose one.
@@ -34,17 +44,21 @@ Commands:
                runtime-state-backed Global Main for the same role is excluded;
                app_id-backed Global Mains are excluded naturally by using a
                distinct APP_ID_REGEX. Spawn a new local instance if absent.
-  global       Preferred Global Main backend. APP_ID_REGEX identifies the
-               Global Main directly from the niri window itself. Focus/summon
-               an existing matching window, otherwise spawn one. No identity
-               state is stored outside niri's window list.
-  global-state Compatibility fallback for applications that cannot give the
-               Global Main a distinct app_id. The matching window id is kept in
-               $XDG_RUNTIME_DIR/window-keybindings/global-main.json for this
-               login session only.
-  single       For global-only single-instance applications: focus/summon the
-               naturally unique matching window, otherwise spawn it. No Global
-               Main state is stored.
+  global       Preferred Global Main backend for a dual-scope role.
+               APP_ID_REGEX identifies the Global Main directly from the niri
+               window itself. Focus/summon an existing matching window,
+               otherwise spawn one. No identity state is stored outside niri's
+               window list.
+  global-state Compatibility fallback for dual-scope applications that cannot
+               give Global Main a distinct app_id. The matching window id is
+               kept in $XDG_RUNTIME_DIR/window-keybindings/global-main.json for
+               this login session only.
+  singleton    For a global-singleton role: focus/summon the globally MRU
+               matching window, otherwise spawn it. No Global Main state is
+               stored. This covers natural singletons such as ChatGPT and
+               policy singletons such as an app the user normally keeps as one
+               global target.
+  single       Compatibility alias for `singleton`.
   inspect      Print current niri windows/workspaces for matcher debugging.
   state        Print runtime fallback registrations only.
   forget       Forget one role's runtime fallback registration.
@@ -321,17 +335,20 @@ run_global_state() {
   fi
 }
 
-run_single() {
+run_singleton() {
   local role=$1
   local app_re=$2
   shift 2
   [[ ${1:-} == "--" ]] && shift
-  (($# > 0)) || fail "single requires a spawn command"
+  (($# > 0)) || fail "singleton requires a spawn command"
 
   local ws window id
   ws=$(focused_workspace)
   [[ -n "$ws" ]] || fail "niri has no focused workspace"
 
+  # A singleton role is resolved globally. Natural singletons normally yield
+  # exactly one window; policy singletons may occasionally yield more, in
+  # which case global MRU is the explicit v0.6 tie-breaker.
   window=$(mru_matching_window "$app_re")
   if [[ -n "$window" ]]; then
     move_and_focus_to_workspace "$(jq -r '.id' <<<"$window")" "$ws"
@@ -341,7 +358,7 @@ run_single() {
   if id=$(spawn_and_wait_for_window "$app_re" -- "$@"); then
     move_and_focus_to_workspace "$id" "$ws"
   else
-    fail "spawned $role but did not observe a matching window"
+    fail "spawned $role singleton but did not observe a matching window"
   fi
 }
 
@@ -370,11 +387,17 @@ main() {
   need flock
 
   case "$command" in
-    local|global|single)
+    local|global)
       (($# >= 4)) || { usage >&2; exit 2; }
       shift
       lock_runtime
       "run_${command}" "$@"
+      ;;
+    singleton|single)
+      (($# >= 4)) || { usage >&2; exit 2; }
+      shift
+      lock_runtime
+      run_singleton "$@"
       ;;
     global-state)
       (($# >= 4)) || { usage >&2; exit 2; }

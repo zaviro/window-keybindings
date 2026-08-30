@@ -20,7 +20,9 @@ cat >"$TMP/state/windows.json" <<'JSON'
   {"id":3,"app_id":"com.mitchellh.ghostty","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":30,"nanos":0}},
   {"id":4,"app_id":"dev.zaviro.tui.yazi","workspace_id":101,"is_focused":false,"focus_timestamp":{"secs":40,"nanos":0}},
   {"id":5,"app_id":"com.openai.chatgpt","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":50,"nanos":0}},
-  {"id":6,"app_id":"dev.zaviro.role.terminal-main","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":60,"nanos":0}}
+  {"id":6,"app_id":"dev.zaviro.role.terminal-main","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":60,"nanos":0}},
+  {"id":7,"app_id":"mock.obsidian","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":61,"nanos":0}},
+  {"id":8,"app_id":"mock.obsidian","workspace_id":102,"is_focused":false,"focus_timestamp":{"secs":70,"nanos":0}}
 ]
 JSON
 
@@ -91,30 +93,41 @@ grep -qx 'move:6:main:101' "$TMP/state/actions.log"
 tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:6'
 "$WKB" state | jq -e 'length == 0' >/dev/null
 
-# Single-instance ChatGPT uses its naturally unique app_id and no state.
-"$WKB" single agent '^com[.]openai[.]chatgpt$' -- mock-spawn com.openai.chatgpt
+# Natural singleton ChatGPT is summoned globally and keeps runtime state empty.
+"$WKB" singleton agent '^com[.]openai[.]chatgpt$' -- mock-spawn com.openai.chatgpt
 grep -qx 'move:5:main:101' "$TMP/state/actions.log"
 tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:5'
 "$WKB" state | jq -e 'length == 0' >/dev/null
 
+# A policy singleton may technically have multiple windows. Global MRU is the
+# explicit tie-breaker; id=8 wins over id=7 and is summoned.
+"$WKB" singleton notes '^mock[.]obsidian$' -- mock-spawn mock.obsidian
+grep -qx 'move:8:main:101' "$TMP/state/actions.log"
+tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:8'
+"$WKB" state | jq -e 'length == 0' >/dev/null
+
+# The old command name remains a compatibility alias.
+"$WKB" single agent '^com[.]openai[.]chatgpt$' -- mock-spawn com.openai.chatgpt
+tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:5'
+
 # Missing local role spawns a new matching window.
 "$WKB" local browser '^google-chrome$' -- mock-spawn google-chrome
-tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:7'
+tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:9'
 
 # Missing app_id-backed Global Main spawns its dedicated native identity and
 # still leaves runtime state empty.
 "$WKB" global editor '^dev[.]zaviro[.]role[.]editor-main$' -- mock-spawn dev.zaviro.role.editor-main
-tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:8'
+tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:10'
 "$WKB" state | jq -e 'length == 0' >/dev/null
 
 # Runtime state exists only as an explicit compatibility fallback.
 "$WKB" global-state legacy-editor '^dev[.]zed[.]Zed$' -- mock-spawn dev.zed.Zed
-"$WKB" state | jq -e '."legacy-editor" == 9 and length == 1' >/dev/null
-tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:9'
+"$WKB" state | jq -e '."legacy-editor" == 11 and length == 1' >/dev/null
+tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:11'
 
 # A local role sharing the same app_id excludes its state-backed fallback
-# Global Main, so it creates a separate local instance instead of focusing id=9.
+# Global Main, so it creates a separate local instance instead of focusing id=11.
 "$WKB" local legacy-editor '^dev[.]zed[.]Zed$' -- mock-spawn dev.zed.Zed
-tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:10'
+tail -n1 "$TMP/state/actions.log" | grep -qx 'focus:12'
 
 printf 'ok\n'
