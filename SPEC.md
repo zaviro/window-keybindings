@@ -300,17 +300,19 @@ focus Global Main
 
 1. Global Main 已存在且位于当前 workspace → focus；
 2. Global Main 已存在但位于其他 workspace → move 到当前 workspace，再 focus；
-3. Global Main 不存在 → 创建新的对应 role 实例，登记为 Global Main，再 focus。
+3. Global Main 不存在 → 创建新的对应 role 实例，并建立其 Global Main 身份，再 focus。
 
 因此：
 
 ```text
 Mod+Alt+Role
-→ resolve Global Main
-→ absent: create + register
+→ resolve Global Main identity
+→ absent: create + establish identity
 → elsewhere: summon to current workspace
 → focus
 ```
+
+“建立 identity”不等于“必须写外部状态”。实现必须按第 9.2 节的 identity 优先级选择最原生的表达方式。
 
 v0.5 不做原 workspace 的占位或恢复逻辑。Global Main 本来就没有 workspace 语义所有权，被 summon 后原 workspace 直接失去该物理窗口即可。
 
@@ -451,7 +453,7 @@ niri 原生方向导航、滚动 strip、窗口重排全部保留。语义搜索
 | `Mod+T` | local terminal | 仅匹配普通 Ghostty 身份；排除 Global Main 与专用 TUI app_id；0=create，1=focus，2+=MRU |
 | `Mod+E` | local editor / Zed | 排除 Global Main；0=create，1=focus，2+=MRU |
 | `Mod+Alt+B` | global-main browser | summon-or-create |
-| `Mod+Alt+T` | global-main terminal | 仅普通 Ghostty 身份；summon-or-create |
+| `Mod+Alt+T` | global-main terminal | 优先使用专用 app_id；summon-or-create |
 | `Mod+Alt+E` | global-main editor / Zed | summon-or-create |
 | `Mod+Alt+A` | global-main agent / ChatGPT | single-instance summon-or-create |
 | `Mod+A` | Agent local | **不绑定** |
@@ -621,46 +623,132 @@ query current workspace windows
 → 2+: choose greatest focus_timestamp / MRU
 ```
 
-Terminal 的 `match role window identity` 必须只接受普通 Ghostty app_id；专用 TUI app_id 不进入 terminal 候选集。
+Terminal 的 `match role window identity` 必须只接受普通 Ghostty app_id；专用 TUI app_id 与专用 Global Main app_id 不进入 Local Terminal 候选集。
 
-Global Main：
+Global Main 激活逻辑保持统一：
 
 ```text
-resolve registered Global Main
-→ absent: spawn new instance + register
+resolve Global Main identity
+→ absent: spawn corresponding identity
 → elsewhere: move-window-to-workspace current
 → focus-window
 ```
 
-只为真正需要身份区分的 Global Main 保存最小运行时状态。Local Instances 不登记、不持久化。
-
-建议状态放在 `$XDG_RUNTIME_DIR/window-keybindings/`，只在当前登录会话有效，并在每次使用时对照 niri 当前窗口列表校验失效 window id。
-
-Agent / ChatGPT 因单实例不需要额外区分 Local 与 Global：任何现有匹配窗口都可以直接作为 Agent Global Main。
+identity 的保存位置由下一节决定，不允许无条件依赖外部 JSON。
 
 ---
 
-## 9.2 v0.5 role 映射先静态声明
+## 9.2 Identity / 状态后端的强制优先级
+
+实现必须按以下顺序选择身份来源：
+
+1. **窗口自身 `app_id` 能表达 → 绝不用外部状态。**
+2. **单实例应用如 ChatGPT → 直接使用天然唯一的 `app_id`。**
+3. **只有无法给不同实例赋不同 identity 的 GUI 应用 → 才临时使用 runtime state。**
+4. **niri 原生 window labels/tags/metadata 正式合并并进入实际使用版本后 → 将剩余 runtime-state role 迁移为 niri-native identity，并删除对应外部状态。**
+
+因此优先结构为：
+
+```text
+Global Main identity
+├── dedicated app_id          # 首选；zero external state
+├── natural single app_id     # 单实例应用；zero external state
+├── niri-native label/tag     # niri 正式提供后成为首选 compositor metadata
+└── runtime window-id state   # 仅兼容 fallback
+```
+
+在 niri 尚未发布通用 window labels 的当前阶段，前两种 identity 应尽量覆盖可控应用。
+
+### app_id-backed Global Main
+
+例如 Ghostty 可以让 Global Main 与 Local Terminal 使用不同 app_id：
+
+```text
+Local Terminal
+app_id = com.mitchellh.ghostty
+
+Terminal Global Main
+app_id = dev.zaviro.role.terminal-main
+```
+
+于是：
+
+```text
+Mod+T
+→ match ^com[.]mitchellh[.]ghostty$
+
+Mod+Alt+T
+→ match ^dev[.]zaviro[.]role[.]terminal-main$
+```
+
+Global Main 的身份直接存在于窗口自身；helper 不保存它的 window id。
+
+### natural single-instance identity
+
+ChatGPT 属于这一类：
+
+```text
+Agent
+→ match ChatGPT app_id globally
+→ existing: summon
+→ absent: spawn
+```
+
+因为应用自身只有一个实例，不需要再制造 Local / Global 身份层，也不保存额外状态。
+
+### runtime-state fallback
+
+只有应用无法为 Local 与 Global Main 暴露不同窗口 identity 时，才允许登记 session-local window id：
+
+```text
+$XDG_RUNTIME_DIR/window-keybindings/global-main.json
+```
+
+约束：
+
+- 只在当前登录会话有效；
+- 每次读取必须对照 niri 当前 windows 校验 window id；
+- Local Instances 永远不登记；
+- fallback 必须在实现/API 中显式可见，不能悄悄成为默认行为；
+- 一旦 niri 原生 metadata 能覆盖该用途，应删除对应 fallback。
+
+当前 helper 因此把默认 `global` 定义为 app_id-backed backend，并把外部状态单独暴露为 `global-state` compatibility backend。
+
+---
+
+## 9.3 v0.5 role 映射先静态声明
 
 第一阶段不做动态 role 注册系统，不做 UI，不做常驻 daemon。
 
 概念上只需要类似：
 
 ```text
-browser:
-  match = Google Chrome app_id
+browser-local:
+  match = Google Chrome local app_id
   spawn = google-chrome
 
-terminal:
-  match = default Ghostty app_id
+browser-global:
+  prefer = dedicated app_id if Chrome can expose one
+  fallback = runtime state only if it cannot
+
+terminal-local:
+  match = com.mitchellh.ghostty
   spawn = ghostty
 
-editor:
-  match = Zed app_id
+terminal-global:
+  match = dev.zaviro.role.terminal-main
+  spawn = ghostty --class=dev.zaviro.role.terminal-main
+
+editor-local:
+  match = Zed local app_id
   spawn = zed
 
+editor-global:
+  prefer = dedicated app_id if Zed can expose one
+  fallback = runtime state only if it cannot
+
 agent:
-  match = ChatGPT app_id
+  match = ChatGPT natural app_id
   spawn = ChatGPT launcher command
   global_only = true
 ```
@@ -683,7 +771,7 @@ yazi:
 
 ---
 
-## 9.3 搜索优先实验 Noctalia
+## 9.4 搜索优先实验 Noctalia
 
 第一阶段不开发新 launcher。
 
@@ -709,17 +797,20 @@ yazi:
 3. Summon Global Main 是否比 Jump 更自然；v0.5 默认 Summon。
 4. Global Main 被 summon 后，原 workspace 是否真的完全不需要占位/恢复逻辑；v0.5 默认不需要。
 5. 专用 TUI app_id 的使用体验是否足够自然；如果稳定，则未来 TUI direct binding / alias 均沿用该模型。
-6. Noctalia 的 window/application ranking 是否已经足够，还是需要薄统一 provider。
-7. named workspace 是否需要自动命名。
-8. workspace slot `1..9` 应固定还是允许动态映射。
+6. Chrome 是否能稳定为 Global Main 暴露独立 app_id；不能则暂用 runtime-state fallback。
+7. Zed 是否能稳定为 Global Main 暴露独立 app_id；不能则暂用 runtime-state fallback。
+8. Noctalia 的 window/application ranking 是否已经足够，还是需要薄统一 provider。
+9. named workspace 是否需要自动命名。
+10. workspace slot `1..9` 应固定还是允许动态映射。
 
 ## Future / Experimental
 
-9. Semantic Alias 是否会自然保持少量高频对象，还是最终重新形成 mark 式维护负担？
-10. Directional Activation 的箭头是否确实应该表示 target 的最终位置？
-11. Directional Activation 在已有多 pane composition 中应该如何表现？
-12. Directional Activation 的默认比例与 focus 策略是什么？
-13. niri / Hyprland 上最自然的物理 chord 实现分别是什么？
+11. niri 原生 window labels/tags/metadata 何时进入可实际使用版本；进入后迁移剩余 runtime-state backend。
+12. Semantic Alias 是否会自然保持少量高频对象，还是最终重新形成 mark 式维护负担？
+13. Directional Activation 的箭头是否确实应该表示 target 的最终位置？
+14. Directional Activation 在已有多 pane composition 中应该如何表现？
+15. Directional Activation 的默认比例与 focus 策略是什么？
+16. niri / Hyprland 上最自然的物理 chord 实现分别是什么？
 
 ---
 
@@ -735,5 +826,6 @@ yazi:
 6. modifier / direction 在其他键上是否保持一致语义？
 7. 如果换掉 niri / Hyprland，这个快捷键的用户意义能否保持？
 8. 新功能是否仍满足“创建后可遗忘”？
+9. 新增 identity 是否能够由窗口/compositor 自身表达，而不是无必要地制造外部状态？
 
 如果不能明显降低认知或操作成本，就不应加入核心规范。
