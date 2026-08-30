@@ -1,0 +1,342 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROGRAM=${0##*/}
+RUNTIME_ROOT=${XDG_RUNTIME_DIR:-/tmp/window-keybindings-${UID}}
+STATE_DIR="$RUNTIME_ROOT/window-keybindings"
+STATE_FILE="$STATE_DIR/global-main.json"
+LOCK_FILE="$STATE_DIR/lock"
+SPAWN_WAIT_ATTEMPTS=${WKB_SPAWN_WAIT_ATTEMPTS:-100}
+SPAWN_WAIT_INTERVAL=${WKB_SPAWN_WAIT_INTERVAL:-0.1}
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  window-keybindings local ROLE APP_ID_REGEX -- COMMAND [ARG...]
+  window-keybindings global ROLE APP_ID_REGEX -- COMMAND [ARG...]
+  window-keybindings single ROLE APP_ID_REGEX -- COMMAND [ARG...]
+  window-keybindings inspect
+  window-keybindings state
+  window-keybindings forget ROLE
+  window-keybindings reset
+
+Commands:
+  local   Focus the MRU matching window on the current workspace, excluding the
+          role's registered Global Main. Spawn a new local instance if absent.
+  global  Focus/summon the role's registered Global Main. If absent, spawn a
+          new matching window and register it as the Global Main.
+  single  For global-only single-instance apps: focus/summon any matching
+          window, otherwise spawn one. No Global Main state is stored.
+  inspect Print current niri windows/workspaces for matcher debugging.
+  state   Print current Global Main runtime state.
+  forget  Forget one role's Global Main registration.
+  reset   Clear all Global Main registrations for this login session.
+
+APP_ID_REGEX is matched case-insensitively against niri's Wayland app_id.
+USAGE
+}
+
+fail() {
+  printf '%s: %s\n' "$PROGRAM" "$*" >&2
+  exit 1
+}
+
+need() {
+  command -v "$1" >/dev/null 2>&1 || fail "required command not found: $1"
+}
+
+init_state() {
+  mkdir -p "$STATE_DIR"
+  if [[ ! -s "$STATE_FILE" ]]; then
+    printf '{}\n' >"$STATE_FILE"
+  fi
+}
+
+lock_state() {
+  exec 9>"$LOCK_FILE"
+  flock 9
+}
+
+windows_json() {
+  niri msg --json windows
+}
+
+workspaces_json() {
+  niri msg --json workspaces
+}
+
+focused_workspace() {
+  workspaces_json | jq -c 'map(select(.is_focused == true)) | first // empty'
+}
+
+window_by_id() {
+  local id=$1
+  windows_json | jq -c --argjson id "$id" 'map(select(.id == $id)) | first // empty'
+}
+
+matches_app_id() {
+  local window_json=$1
+  local app_re=$2
+  jq -e --arg re "$app_re" '(.app_id // "") | test($re; "i")' <<<"$window_json" >/dev/null
+}
+
+registered_global_id() {
+  local role=$1
+  jq -r --arg role "$role" '.[$role] // empty' "$STATE_FILE"
+}
+
+set_global_id() {
+  local role=$1
+  local id=$2
+  local tmp
+  tmp=$(mktemp "$STATE_DIR/state.XXXXXX")
+  jq --arg role "$role" --argjson id "$id" '.[$role] = $id' "$STATE_FILE" >"$tmp"
+  mv "$tmp" "$STATE_FILE"
+}
+
+clear_global_id() {
+  local role=$1
+  local tmp
+  tmp=$(mktemp "$STATE_DIR/state.XXXXXX")
+  jq --arg role "$role" 'del(.[$role])' "$STATE_FILE" >"$tmp"
+  mv "$tmp" "$STATE_FILE"
+}
+
+validated_global_id() {
+  local role=$1
+  local app_re=$2
+  local id window
+  id=$(registered_global_id "$role")
+  [[ -n "$id" ]] || return 1
+
+  window=$(window_by_id "$id")
+  if [[ -z "$window" ]] || ! matches_app_id "$window" "$app_re"; then
+    clear_global_id "$role"
+    return 1
+  fi
+
+  printf '%s\n' "$id"
+}
+
+mru_matching_window() {
+  local app_re=$1
+  local workspace_id=${2:-}
+  local excluded_id=${3:-}
+  windows_json | jq -c \
+    --arg re "$app_re" \
+    --arg workspace_id "$workspace_id" \
+    --arg excluded_id "$excluded_id" '
+      [ .[]
+        | select((.app_id // "") | test($re; "i"))
+        | select(($workspace_id == "") or ((.workspace_id | tostring) == $workspace_id))
+        | select(($excluded_id == "") or ((.id | tostring) != $excluded_id))
+      ]
+      | if length == 0 then empty
+        else max_by([(.focus_timestamp.secs // 0), (.focus_timestamp.nanos // 0), .id])
+        end
+    '
+}
+
+focus_window() {
+  local id=$1
+  niri msg action focus-window --id "$id" >/dev/null
+}
+
+workspace_reference() {
+  local workspace_json=$1
+  local name idx
+  name=$(jq -r '.name // empty' <<<"$workspace_json")
+  if [[ -n "$name" ]]; then
+    printf '%s\n' "$name"
+    return
+  fi
+  idx=$(jq -r '.idx' <<<"$workspace_json")
+  printf '%s\n' "$idx"
+}
+
+move_and_focus_to_workspace() {
+  local id=$1
+  local target_workspace=$2
+  local target_id window current_window_ws ref
+
+  target_id=$(jq -r '.id' <<<"$target_workspace")
+  window=$(window_by_id "$id")
+  [[ -n "$window" ]] || fail "window $id disappeared"
+  current_window_ws=$(jq -r '.workspace_id // empty' <<<"$window")
+
+  if [[ "$current_window_ws" != "$target_id" ]]; then
+    ref=$(workspace_reference "$target_workspace")
+    niri msg action move-window-to-workspace \
+      --window-id "$id" \
+      --focus false \
+      "$ref" >/dev/null
+  fi
+
+  focus_window "$id"
+}
+
+spawn_and_wait_for_window() {
+  local app_re=$1
+  shift
+  [[ ${1:-} == "--" ]] && shift
+  (($# > 0)) || fail "spawn command is empty"
+
+  local before attempt window
+  before=$(windows_json | jq '[.[].id]')
+
+  "$@" >/dev/null 2>&1 &
+
+  for ((attempt = 0; attempt < SPAWN_WAIT_ATTEMPTS; attempt++)); do
+    window=$(windows_json | jq -c \
+      --arg re "$app_re" \
+      --argjson before "$before" '
+        [ .[]
+          | select((.app_id // "") | test($re; "i"))
+          | select((.id as $id | $before | index($id)) == null)
+        ]
+        | if length == 0 then empty
+          else max_by([(.focus_timestamp.secs // 0), (.focus_timestamp.nanos // 0), .id])
+          end
+      ')
+    if [[ -n "$window" ]]; then
+      jq -r '.id' <<<"$window"
+      return 0
+    fi
+    sleep "$SPAWN_WAIT_INTERVAL"
+  done
+
+  return 1
+}
+
+run_local() {
+  local role=$1
+  local app_re=$2
+  shift 2
+  [[ ${1:-} == "--" ]] && shift
+  (($# > 0)) || fail "local requires a spawn command"
+
+  local ws ws_id global_id='' window id
+  ws=$(focused_workspace)
+  [[ -n "$ws" ]] || fail "niri has no focused workspace"
+  ws_id=$(jq -r '.id' <<<"$ws")
+
+  global_id=$(validated_global_id "$role" "$app_re" || true)
+  window=$(mru_matching_window "$app_re" "$ws_id" "$global_id")
+  if [[ -n "$window" ]]; then
+    focus_window "$(jq -r '.id' <<<"$window")"
+    return
+  fi
+
+  if id=$(spawn_and_wait_for_window "$app_re" -- "$@"); then
+    move_and_focus_to_workspace "$id" "$ws"
+  else
+    printf '%s: spawned %s but did not observe a new matching window within the wait window\n' "$PROGRAM" "$role" >&2
+  fi
+}
+
+run_global() {
+  local role=$1
+  local app_re=$2
+  shift 2
+  [[ ${1:-} == "--" ]] && shift
+  (($# > 0)) || fail "global requires a spawn command"
+
+  local ws id
+  ws=$(focused_workspace)
+  [[ -n "$ws" ]] || fail "niri has no focused workspace"
+
+  if id=$(validated_global_id "$role" "$app_re"); then
+    move_and_focus_to_workspace "$id" "$ws"
+    return
+  fi
+
+  if id=$(spawn_and_wait_for_window "$app_re" -- "$@"); then
+    set_global_id "$role" "$id"
+    move_and_focus_to_workspace "$id" "$ws"
+  else
+    fail "spawned $role Global Main but did not observe a new matching window"
+  fi
+}
+
+run_single() {
+  local role=$1
+  local app_re=$2
+  shift 2
+  [[ ${1:-} == "--" ]] && shift
+  (($# > 0)) || fail "single requires a spawn command"
+
+  local ws window id
+  ws=$(focused_workspace)
+  [[ -n "$ws" ]] || fail "niri has no focused workspace"
+
+  window=$(mru_matching_window "$app_re")
+  if [[ -n "$window" ]]; then
+    move_and_focus_to_workspace "$(jq -r '.id' <<<"$window")" "$ws"
+    return
+  fi
+
+  if id=$(spawn_and_wait_for_window "$app_re" -- "$@"); then
+    move_and_focus_to_workspace "$id" "$ws"
+  else
+    fail "spawned $role but did not observe a matching window"
+  fi
+}
+
+inspect_state() {
+  local workspaces windows
+  workspaces=$(workspaces_json)
+  windows=$(windows_json)
+  jq -n \
+    --argjson workspaces "$workspaces" \
+    --argjson windows "$windows" \
+    '{workspaces: $workspaces, windows: $windows}'
+}
+
+main() {
+  local command=${1:-}
+
+  case "$command" in
+    -h|--help|help|'')
+      usage
+      return
+      ;;
+  esac
+
+  need jq
+  need niri
+  need flock
+  init_state
+
+  case "$command" in
+    local|global|single)
+      (($# >= 4)) || { usage >&2; exit 2; }
+      shift
+      lock_state
+      "run_${command}" "$@"
+      ;;
+    inspect)
+      (($# == 1)) || { usage >&2; exit 2; }
+      inspect_state
+      ;;
+    state)
+      (($# == 1)) || { usage >&2; exit 2; }
+      cat "$STATE_FILE"
+      ;;
+    forget)
+      (($# == 2)) || { usage >&2; exit 2; }
+      lock_state
+      clear_global_id "$2"
+      ;;
+    reset)
+      (($# == 1)) || { usage >&2; exit 2; }
+      lock_state
+      printf '{}\n' >"$STATE_FILE"
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+}
+
+main "$@"
